@@ -402,14 +402,17 @@ class _CampaignScreenState extends State<CampaignScreen> {
                           controller: TextEditingController(text: _delaySeconds.toString()),
                         ),
                       ),
-                      const Spacer(),
-                      FilledButton.icon(
-                        onPressed: _isSending ? null : _startCampaign,
-                        icon: _isSending 
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
-                            : const Icon(Icons.send),
-                        label: Text(_isSending ? "Enviando..." : "Iniciar Campanha"),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: FilledButton.icon(
+                          onPressed: _isSending ? null : _startCampaign,
+                          icon: _isSending 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+                              : const Icon(Icons.send),
+                          label: Text(_isSending ? "Enviando..." : "Iniciar Campanha", overflow: TextOverflow.ellipsis),
+                        ),
                       ),
+
                     ],
                   ),
                   const Divider(height: 32),
