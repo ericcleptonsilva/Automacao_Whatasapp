@@ -308,12 +308,16 @@ class _CampaignScreenState extends State<CampaignScreen> {
                         children: [
                           Icon(Icons.auto_awesome, size: 14, color: Theme.of(context).colorScheme.onSecondaryContainer),
                           const SizedBox(width: 4),
-                          Text(
-                            "I.A. Ativa: $_activeAiProvider ${_activeAiModel.isNotEmpty ? '($_activeAiModel)' : ''}",
-                            style: TextStyle(
-                              fontSize: 12, 
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSecondaryContainer
+                          Flexible(
+                            child: Text(
+                              "I.A. Ativa: $_activeAiProvider ${_activeAiModel.isNotEmpty ? '($_activeAiModel)' : ''}",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12, 
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSecondaryContainer
+                              ),
                             ),
                           ),
                         ],

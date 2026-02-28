@@ -229,7 +229,45 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     );
   }
 
-
+  void _showAccessibilityDisclosure(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.accessibility_new, color: Color(0xFF075E54)),
+            SizedBox(width: 8),
+            Expanded(child: Text("Acessibilidade Requerida", style: TextStyle(fontSize: 18))),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Text(
+            "O Autofluxow é focado em automação empresarial (Marketing/CRM) pelo WhatsApp.\n\n"
+            "Nós usamos a API de Acessibilidade (AccessibilityService) ESTRITAMENTE para simular toques de disparo no botão de Enviar em aplicativos de mensagens abertos pelo próprio app.\n\n"
+            "Nenhuma informação pessoal ou confidencial é lida, capturada ou compartilhada em nuvem. A API atua unicamente como disparador motor para envios de campanhas autorizadas em background pelo seu negócio.\n\n"
+            "Ao prosseguir, você será redirecionado para as configurações do seu celular para ativar manualmente o Autofluxow na aba de 'Aplicativos Instalados/Acessibilidade'.",
+            style: TextStyle(fontSize: 14),
+            textAlign: TextAlign.justify,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCELAR", style: TextStyle(color: Colors.grey)),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.read<ServiceStatusProvider>().openAccessibilitySettings();
+            },
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF075E54)),
+            child: const Text("CONCORDO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -341,7 +379,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                       color: statusProvider.isAccessibilityEnabled ? Colors.green : Colors.red, size: 22),
                     title: const Text("Acessibilidade"),
                     value: statusProvider.isAccessibilityEnabled,
-                    onChanged: (val) => statusProvider.openAccessibilitySettings(),
+                    onChanged: (val) {
+                      if (val) {
+                        _showAccessibilityDisclosure(context);
+                      } else {
+                        statusProvider.openAccessibilitySettings();
+                      }
+                    },
                   ),
                    SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -387,7 +431,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                           context, 
                           title: "Acessibilidade", 
                           isEnabled: statusProvider.isAccessibilityEnabled,
-                          onTap: statusProvider.openAccessibilitySettings,
+                          onTap: () {
+                            if (!statusProvider.isAccessibilityEnabled) {
+                              _showAccessibilityDisclosure(context);
+                            } else {
+                              statusProvider.openAccessibilitySettings();
+                            }
+                          },
                         ),
                       ),
                       const SizedBox(width: 10),

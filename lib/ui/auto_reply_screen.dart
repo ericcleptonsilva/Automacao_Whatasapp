@@ -141,9 +141,14 @@ class _AutoReplyScreenState extends State<AutoReplyScreen> {
       // Auto-Migration for decommissioned models
       if (aiModel == 'llama3-8b-8192') aiModel = 'llama-3.1-8b-instant';
       if (aiModel == 'google/gemini-2.0-flash-lite-preview-02-05:free' || aiModel == 'google/gemini-2.0-flash-lite-preview') {
-        aiModel = 'google/gemini-2.0-flash-exp:free';
+         aiModel = _aiProvider == 'OpenRouter' 
+             ? 'google/gemini-2.0-flash-exp:free' 
+             : 'gemini-2.0-flash-lite-preview';
       }
-
+      // Outro fallback preventivo para migração desordenada previa
+      if (_aiProvider == 'Gemini' && aiModel == 'google/gemini-2.0-flash-exp:free') {
+         aiModel = 'gemini-2.0-flash-exp';
+      }
     final replyDelay = await _repository.getReplyDelay();
     final debounceDelay = await _repository.getDebounceDelay();
     final simulateTyping = await _repository.isSimulateTypingEnabled();
