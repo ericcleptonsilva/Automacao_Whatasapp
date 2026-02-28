@@ -1,0 +1,11 @@
+name: whatsapp_automation_plugin
+description: A local plugin for WhatsApp Automation.
+version: 0.0.1
+environment:
+  sdk: ^3.0.0
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.clept.whatsappautomation
+        pluginClass: WhatsAppAutomationPlugin

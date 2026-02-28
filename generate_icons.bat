@@ -1,0 +1,9 @@
+@echo off
+set FLUTTER_PATH=C:\Users\clept\dev\flutter\bin\flutter.bat
+echo Running flutter pub get...
+call %FLUTTER_PATH% pub get
+echo Running flutter_launcher_icons...
+call %FLUTTER_PATH% pub run flutter_launcher_icons
+echo Running flutter_native_splash...
+call %FLUTTER_PATH% pub run flutter_native_splash:create
+echo Done.
