@@ -145,6 +145,16 @@ O serviço de auto-resposta em segunda plano (Background Isolate) iniciava e cri
 1. Adicionado o método auxiliar `_getPrefs()` contendo a instrução `await prefs.reload();` no `AutoReplyRepository`.
 2. O repositório agora recarrega o estado atualizado do disco instantaneamente a cada nova notificação lida, aplicando novas instruções em tempo real sem necessitar reiniciar o app ou o serviço.
 
+## [ISSUE-014] Exigência de URL de Política de Privacidade (Google Play)
+
+### Descrição do Problema
+O Google Play Console exige uma Política de Privacidade válida por URL em aplicativos que requisitam permissões sensíveis (Acessibilidade, Notificações, Contatos, Armazenamento) e/ou que possam ter um público-alvo inferior a 13/16 anos. O aplicativo estava sem o documento, não possibilitando o envio para revisão.
+
+### Resolução
+1. **Criação do Documento:** Adicionado o documento `PRIVACY_POLICY.md` na raiz do projeto com o detalhamento das permissões, privacidade das crianças e integrações com serviços de terceiros (como Google Gemini e AdMob).
+2. **Atualização do Repositório:** O README.md e este arquivo foram atualizados para que a política fique perene e justifique o uso restrito de dados (local/temporário).
+3. **Link de Hospedagem:** Orientado o fornecimento de uma forma gratuita de expor a URL para o Google Play (GitHub Pages, Google Sites).
+
 ---
 
 ## [RELEASE] v2.0.0 - Estabilidade e Evolução Gemma
