@@ -35,25 +35,118 @@ class WhatsAppAccessibilityService : AccessibilityService() {
             // Just find and click send button if needed (legacy fallback)
             val handler = android.os.Handler(android.os.Looper.getMainLooper())
             var attempts = 0
-            val maxAttempts = 5 // Retenta até 5 vezes (~2.5 segundos)
+            val maxAttempts = 20 // Retenta até 10 segundos (~20x 500ms)
 
             val checkRunnable = object : Runnable {
                 override fun run() {
-                    val currentRoot = rootInActiveWindow
-                    if (currentRoot != null) {
-                        val clicked = findAndClickSendButton(currentRoot)
-                        if (clicked) {
+                    val root = rootInActiveWindow
+                    if (root != null && WhatsAppAutomationPlugin.automationState > 0) {
+                        Log.d(TAG, "Current UI State: ${WhatsAppAutomationPlugin.automationState}")
+                        when (WhatsAppAutomationPlugin.automationState) {
+                            1 -> {
+                                // Pode estar no Contact Picker ou já no Preview (se JID funcionou/contato salvo)
+                                if (findAndClickSendButton(root)) {
+                                    WhatsAppAutomationPlugin.automationState = 0
+                                    WhatsAppAutomationPlugin.isPendingSendClick = false
+                                    return
+                                }
+                                // Tenta achar botão Lupa de Pesquisar (Contact Picker)
+                                val searchBtn = findNodeById(root, "com.whatsapp:id/menuitem_search") 
+                                             ?: findNodeById(root, "com.whatsapp.w4b:id/menuitem_search")
+                                             ?: findNodesByText(root, listOf("Pesquisar", "Search", "Buscar")).firstOrNull()
+                                
+                                if (searchBtn != null && searchBtn.isClickable) {
+                                    searchBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                    WhatsAppAutomationPlugin.automationState = 2
+                                    attempts = 0
+                                    Log.d(TAG, "Clicked Search in Contact Picker")
+                                }
+                            }
+                            2 -> {
+                                // Tenta achar o Input de texto para digitar o número
+                                val searchInput = findNodeById(root, "com.whatsapp:id/search_src_text")
+                                               ?: findNodeById(root, "com.whatsapp.w4b:id/search_src_text")
+                                if (searchInput != null) {
+                                    val currentText = searchInput.text?.toString() ?: ""
+                                    if (currentText != WhatsAppAutomationPlugin.pendingPhone) {
+                                        val args = Bundle()
+                                        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, WhatsAppAutomationPlugin.pendingPhone)
+                                        searchInput.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                                        Log.d(TAG, "Typed phone number in Search")
+                                    }
+                                    
+                                    // Aguarda resultado: procurar "Conversar", "Chat" ou o próprio número
+                                    val chatNodes = findNodesByText(root, listOf("Conversar", "Chat", "Message", "Mensagem", WhatsAppAutomationPlugin.pendingPhone ?: "xxx"))
+                                    for (node in chatNodes) {
+                                        if (node.className?.contains("EditText") == true) continue
+                                        
+                                        var clickable: AccessibilityNodeInfo? = node
+                                        while (clickable != null && !clickable.isClickable) {
+                                            clickable = clickable.parent
+                                        }
+                                        if (clickable != null) {
+                                            clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                            WhatsAppAutomationPlugin.automationState = 3
+                                            attempts = 0
+                                            Log.d(TAG, "Clicked Contact Row")
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                            3 -> {
+                                // Aguarda botão FAB verde de confirmar (Next) ou se foi pra Preview
+                                val nextFab = findNodeById(root, "com.whatsapp:id/send") 
+                                           ?: findNodeById(root, "com.whatsapp.w4b:id/send")
+                                           ?: findNodeById(root, "com.whatsapp:id/next")
+                                           ?: findNodeById(root, "com.whatsapp.w4b:id/next")
+                                
+                                if (nextFab != null && nextFab.isClickable) {
+                                    nextFab.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                    WhatsAppAutomationPlugin.automationState = 4
+                                    attempts = 0
+                                    Log.d(TAG, "Clicked Next FAB in Contact Picker")
+                                } else if (findAndClickSendButton(root)) { // Se já pulou pra Tela Media Preview
+                                    WhatsAppAutomationPlugin.automationState = 0
+                                    WhatsAppAutomationPlugin.isPendingSendClick = false
+                                }
+                            }
+                            4 -> {
+                                // Tela final de envio (Media Preview ou Dialogo de Confirmação de PDF)
+                                if (findAndClickSendButton(root)) {
+                                    WhatsAppAutomationPlugin.automationState = 0
+                                    WhatsAppAutomationPlugin.isPendingSendClick = false
+                                    Log.d(TAG, "Clicked Final Send Button in Preview")
+                                } else {
+                                    val btnSendDialog = findNodesByText(root, listOf("Send", "Enviar", "SEND", "ENVIAR", "Sim", "Yes"))
+                                    for (btn in btnSendDialog) {
+                                        if (btn.className?.contains("Button") == true) {
+                                            btn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                            WhatsAppAutomationPlugin.automationState = 0
+                                            WhatsAppAutomationPlugin.isPendingSendClick = false
+                                            Log.d(TAG, "Clicked Send in Alert Dialog")
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if (root != null && WhatsAppAutomationPlugin.isPendingSendClick) {
+                        // Fallback Text Only handling
+                        if (findAndClickSendButton(root)) {
                             WhatsAppAutomationPlugin.isPendingSendClick = false
                             Log.d(TAG, "Successfully clicked Send button after $attempts attempts.")
                             return
                         }
                     }
                     
-                    if (attempts < maxAttempts && WhatsAppAutomationPlugin.isPendingSendClick) {
+                    if (attempts < maxAttempts && (WhatsAppAutomationPlugin.automationState > 0 || WhatsAppAutomationPlugin.isPendingSendClick)) {
                         attempts++
                         handler.postDelayed(this, 500) // retry every 500ms
-                    } else {
-                        Log.d(TAG, "Failed to find Send button after $maxAttempts attempts.")
+                    } else if (attempts >= maxAttempts) {
+                        Log.d(TAG, "Failed to complete Acessibility Automation after $maxAttempts attempts.")
+                        WhatsAppAutomationPlugin.automationState = 0
+                        WhatsAppAutomationPlugin.isPendingSendClick = false
                     }
                 }
             }
@@ -61,18 +154,34 @@ class WhatsAppAccessibilityService : AccessibilityService() {
             
         }
     }
+    
+    private fun findNodeById(root: AccessibilityNodeInfo, id: String): AccessibilityNodeInfo? {
+        val list = root.findAccessibilityNodeInfosByViewId(id)
+        return if (list.isNotEmpty()) list[0] else null
+    }
+
+    private fun findNodesByText(root: AccessibilityNodeInfo, texts: List<String>): List<AccessibilityNodeInfo> {
+        val results = mutableListOf<AccessibilityNodeInfo>()
+        for (text in texts) {
+            results.addAll(root.findAccessibilityNodeInfosByText(text))
+        }
+        return results
+    }
 
     private fun findAndClickSendButton(rootNode: AccessibilityNodeInfo): Boolean {
         val nodesToClick = ArrayList<AccessibilityNodeInfo>()
+
 
         // 1. By ID (Mais modernos)
         val ids = listOf(
             "com.whatsapp:id/send", 
             "com.whatsapp:id/send_container", 
             "com.whatsapp:id/fab",
+            "com.whatsapp:id/media_send",
             "com.whatsapp.w4b:id/send",
             "com.whatsapp.w4b:id/send_container",
-            "com.whatsapp.w4b:id/fab"
+            "com.whatsapp.w4b:id/fab",
+            "com.whatsapp.w4b:id/media_send"
         )
         for (id in ids) {
             val list = rootNode.findAccessibilityNodeInfosByViewId(id)

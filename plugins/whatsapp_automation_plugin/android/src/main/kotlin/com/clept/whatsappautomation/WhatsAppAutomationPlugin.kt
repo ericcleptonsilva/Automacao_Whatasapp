@@ -22,6 +22,8 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
         // Shared state (mostly for toggle)
         var isAutomationEnabled: Boolean = true
         var isPendingSendClick: Boolean = false
+        var automationState: Int = 0
+        var pendingPhone: String? = null
 
         @JvmStatic
         fun notifyNotification(data: Map<String, Any?>) {
@@ -206,9 +208,14 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
 
             intent.type = mimeType
             intent.putExtra(Intent.EXTRA_STREAM, uri)
-            if (!message.isNullOrEmpty()) intent.putExtra(Intent.EXTRA_TEXT, message)
+            intent.putExtra("jid", "$phone@s.whatsapp.net")
+            if (!message.isNullOrEmpty()) intent.putExtra(Intent.EXTRA_TEXT, message)            
             
-            // Try WhatsApp first, then Business if standard not found
+            // Ativa máquina de estados de UI Automation pro Contact Picker (Arquivos/Midia/PDF pra Não-Salvos)
+            isPendingSendClick = true
+            automationState = 1
+            pendingPhone = phone
+
             val packages = listOf("com.whatsapp", "com.whatsapp.w4b")
             var activityStarted = false
             
@@ -216,15 +223,15 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
                 try {
                     val specificIntent = Intent(intent)
                     specificIntent.setPackage(pkg)
-                    specificIntent.putExtra("jid", "$phone@s.whatsapp.net")
                     specificIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     specificIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    specificIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     context.startActivity(specificIntent)
                     activityStarted = true
-                    Log.d("WhatsAppPlugin", "Started activity for package: $pkg")
+                    Log.d("WhatsAppPlugin", "Started ACTION_SEND UI Automation for package: $pkg")
                     break
                 } catch (e: Exception) {
-                    Log.d("WhatsAppPlugin", "Could not start package $pkg: ${e.message}")
+                    Log.d("WhatsAppPlugin", "Could not start ACTION_SEND for package $pkg: ${e.message}")
                 }
             }
 
@@ -234,8 +241,9 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
                 chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(chooser)
             }
+
         } catch (e: Exception) {
-            Log.e("WhatsAppPlugin", "Global error in sendFileToWhatsApp", e)
+            Log.e("WhatsAppPlugin", "Global error in sendFileToWhatsApp Clipboard Mode", e)
             e.printStackTrace()
         }
     }
