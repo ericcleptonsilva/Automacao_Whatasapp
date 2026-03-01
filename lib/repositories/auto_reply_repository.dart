@@ -32,8 +32,8 @@ class AutoReplyRepository {
 
   Future<String> getAiModel() async {
     final prefs = await _getPrefs();
-    String model = prefs.getString(_keyAiModel) ?? 'gemini-2.0-flash';
-    if (model == 'gemini-1.5-flash-latest' || model == 'gemini-1.5-flash') return 'gemini-2.0-flash';
+    String model = prefs.getString(_keyAiModel) ?? 'llama-3.1-8b-instant';
+    if (model == 'gemini-1.5-flash-latest' || model == 'gemini-1.5-flash') return 'llama-3.1-8b-instant';
     return model;
   }
 
@@ -44,7 +44,7 @@ class AutoReplyRepository {
 
   Future<String> getAiProvider() async {
     final prefs = await _getPrefs();
-    return prefs.getString(_keyAiProvider) ?? 'Gemini';
+    return prefs.getString(_keyAiProvider) ?? 'Groq';
   }
 
   Future<void> setAiProvider(String provider) async {

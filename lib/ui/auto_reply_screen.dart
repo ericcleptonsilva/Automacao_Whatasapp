@@ -523,9 +523,13 @@ class _AutoReplyScreenState extends State<AutoReplyScreen> {
                   // Model Selection (Dynamic)
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Modelo", border: OutlineInputBorder()),
-                    initialValue: _aiModel,
+                    initialValue: _getModelsForProvider(_aiProvider).any((item) => item.value == _aiModel) ? _aiModel : null,
                     items: _getModelsForProvider(_aiProvider),
-                    onChanged: (val) => setState(() => _aiModel = val!),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _aiModel = val);
+                      }
+                    },
                   ),
                   const SizedBox(height: 10),
 

@@ -6,8 +6,14 @@ import '../services/logger_service.dart';
 class CRMRepository {
   static const String _keyDepartments = 'crm_departments';
 
-  Future<List<Department>> getDepartments() async {
+  Future<SharedPreferences> _getPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    return prefs;
+  }
+
+  Future<List<Department>> getDepartments() async {
+    final prefs = await _getPrefs();
     final String? data = prefs.getString(_keyDepartments);
     if (data == null) return [];
 
@@ -21,7 +27,7 @@ class CRMRepository {
   }
 
   Future<void> saveDepartments(List<Department> departments) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final String encoded = jsonEncode(departments.map((e) => e.toJson()).toList());
     await prefs.setString(_keyDepartments, encoded);
   }

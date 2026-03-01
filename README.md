@@ -69,5 +69,9 @@ Esta versão marca a transição de um protótipo avançado para um produto de n
 - **Transição de Modelo Fluida:** O aplicativo agora prioriza o `gemini-2.0-flash` como motor principal. Um interceptador converte dinamicamente seleções obsoletas salvas no cache interno para o novo modelo automaticamente.
 - **Proteção do Isolate:** A inicialização do MediaPipe (Gemma) foi blindada com uma flag `isBackgroundContext`, prevenindo crashes severos da JNI (Java Native Interface) quando executado em segundo plano.
 
+### Melhorias na Automação Nativa e Campanhas
+- **Delay Cognitivo de Acessibilidade:** Em versões recentes do Android, a renderização de UI do WhatsApp tem um pequeno atraso. Modificamos o `WhatsAppAccessibilityService` nativo (Kotlin) instanciando um loop de retry assíncrono com delay (`Handler.postDelayed`). Isso resolve o bug crítico onde Campanhas abriam os contatos no WhatsApp, mas não clicavam no botão "Enviar".
+- **Sincronia de IDs:** Foram adicionados múltiplos selectors de Layout ("Send", "Enviar") e Node IDs atualizados do Business e Pessoal para ampliar a detecção de clique em dispositivos rápidos e lentos.
+
 ---
 Para detalhes técnicos e logs de erros, consulte o arquivo [ISSUES.md](file:///c:/Users/clept/Documents/APPS/Automacao_Whatasapp/ISSUES.md).
