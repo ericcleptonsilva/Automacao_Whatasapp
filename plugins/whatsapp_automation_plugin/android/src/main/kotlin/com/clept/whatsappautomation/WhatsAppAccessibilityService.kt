@@ -108,14 +108,25 @@ class WhatsAppAccessibilityService : AccessibilityService() {
         val ids = listOf(
             "com.whatsapp:id/send", 
             "com.whatsapp:id/send_container", 
+            "com.whatsapp:id/fab",
             "com.whatsapp:id/media_send",
             "com.whatsapp.w4b:id/send",
             "com.whatsapp.w4b:id/send_container",
+            "com.whatsapp.w4b:id/fab",
             "com.whatsapp.w4b:id/media_send"
         )
         for (id in ids) {
             val list = rootNode.findAccessibilityNodeInfosByViewId(id)
-            if (list != null) nodesToClick.addAll(list)
+            if (list != null) {
+                for (node in list) {
+                    // Impede o falso positivo se o robô encostar na tela Home antes da Preview Screen
+                    val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+                    if (id.endsWith("fab") && (desc.contains("nova") || desc.contains("new") || desc.contains("nuevo"))) {
+                        continue
+                    }
+                    nodesToClick.add(node)
+                }
+            }
         }
 
         // 2. By Text (Diversos idiomas)

@@ -215,23 +215,32 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
             isPendingSendClick = true
             automationState = 4 
 
+            val jidModern = "$phone@s.whatsapp.net"
+            val jidLegacy = "$phone@c.us"
+            Log.d("WhatsAppPlugin", "Sending media to JID: $jidModern (phone='$phone')")
+
             val packages = listOf("com.whatsapp", "com.whatsapp.w4b")
             var activityStarted = false
-            
+
             for (pkg in packages) {
-                try {
-                    val specificIntent = Intent(intent)
-                    specificIntent.setPackage(pkg)
-                    specificIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    specificIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    specificIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    context.startActivity(specificIntent)
-                    activityStarted = true
-                    Log.d("WhatsAppPlugin", "Started ACTION_SEND Direct for package: $pkg")
-                    break
-                } catch (e: Exception) {
-                    Log.d("WhatsAppPlugin", "Could not start ACTION_SEND for package $pkg: ${e.message}")
+                // Tenta com o JID moderno primeiro; se falhar, testa o legado
+                for (jid in listOf(jidModern, jidLegacy)) {
+                    try {
+                        val specificIntent = Intent(intent)
+                        specificIntent.setPackage(pkg)
+                        specificIntent.putExtra("jid", jid)
+                        specificIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        specificIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        specificIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        context.startActivity(specificIntent)
+                        activityStarted = true
+                        Log.d("WhatsAppPlugin", "ACTION_SEND OK: pkg=$pkg jid=$jid")
+                        break
+                    } catch (e: Exception) {
+                        Log.d("WhatsAppPlugin", "Could not start ACTION_SEND for pkg=$pkg jid=$jid: ${e.message}")
+                    }
                 }
+                if (activityStarted) break
             }
 
             if (!activityStarted) {
