@@ -43,6 +43,35 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                     if (root != null && WhatsAppAutomationPlugin.automationState > 0) {
                         Log.d(TAG, "Current UI State: ${WhatsAppAutomationPlugin.automationState}")
                         when (WhatsAppAutomationPlugin.automationState) {
+                            5 -> {
+                                // Aguarda o chat da wa.me abrir (campo de entrada visível)
+                                val entryBox = findNodeById(root, "com.whatsapp:id/entry")
+                                            ?: findNodeById(root, "com.whatsapp.w4b:id/entry")
+                                if (entryBox != null) {
+                                    Log.d(TAG, "Pre-Warm: chat open! Injecting ACTION_SEND with warm JID.")
+                                    WhatsAppAutomationPlugin.automationState = 4
+                                    attempts = 0
+
+                                    val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND)
+                                    sendIntent.type = WhatsAppAutomationPlugin.pendingMimeType
+                                    sendIntent.putExtra(android.content.Intent.EXTRA_STREAM, WhatsAppAutomationPlugin.pendingUri)
+                                    sendIntent.putExtra("jid", "${WhatsAppAutomationPlugin.pendingPhone}@s.whatsapp.net")
+                                    if (!WhatsAppAutomationPlugin.pendingMessage.isNullOrEmpty()) {
+                                        sendIntent.putExtra(android.content.Intent.EXTRA_TEXT, WhatsAppAutomationPlugin.pendingMessage)
+                                    }
+                                    sendIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    sendIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    sendIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    val pkg = WhatsAppAutomationPlugin.pendingPackage
+                                    if (pkg != null) sendIntent.setPackage(pkg)
+                                    try {
+                                        startActivity(sendIntent)
+                                        Log.d(TAG, "Pre-Warm: ACTION_SEND injected for pkg=$pkg")
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Pre-Warm: Error injecting ACTION_SEND", e)
+                                    }
+                                }
+                            }
                             4 -> {
                                 // Tela final de envio (Media Preview ou Dialogo de Confirmação de PDF)
                                 if (findAndClickSendButton(root)) {

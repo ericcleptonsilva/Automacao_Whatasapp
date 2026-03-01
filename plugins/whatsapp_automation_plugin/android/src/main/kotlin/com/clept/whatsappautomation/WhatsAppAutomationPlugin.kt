@@ -24,6 +24,10 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
         var isPendingSendClick: Boolean = false
         var automationState: Int = 0
         var pendingPhone: String? = null
+        var pendingUri: android.net.Uri? = null
+        var pendingMimeType: String? = null
+        var pendingMessage: String? = null
+        var pendingPackage: String? = null
 
         @JvmStatic
         fun notifyNotification(data: Map<String, Any?>) {
@@ -205,48 +209,41 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
                 if (isImage) "image/*" else "*/*"
             } ?: (if (isImage) "image/*" else "*/*")
 
-            val intent = Intent(Intent.ACTION_SEND)
-            intent.type = mimeType
-            intent.putExtra(Intent.EXTRA_STREAM, uri)
-            intent.putExtra("jid", "$phone@s.whatsapp.net")
-            if (!message.isNullOrEmpty()) intent.putExtra(Intent.EXTRA_TEXT, message)            
-            
-            // Vai direto para o envio final (Contact Saved Preview)
-            isPendingSendClick = true
-            automationState = 4 
+
 
             val jidModern = "$phone@s.whatsapp.net"
-            val jidLegacy = "$phone@c.us"
-            Log.d("WhatsAppPlugin", "Sending media to JID: $jidModern (phone='$phone')")
+            Log.d("WhatsAppPlugin", "Pre-Warm: opening wa.me for JID $jidModern")
+
+            // Armazena para o Accessibility disparar APÓS a conversa abrir
+            pendingUri = uri
+            pendingMimeType = mimeType
+            pendingMessage = message
+            pendingPhone = phone
+            isPendingSendClick = true
+            automationState = 5  // Aguarda chat abrir (Pre-Warm)
+
+            val intentChat = Intent(Intent.ACTION_VIEW)
+            intentChat.data = android.net.Uri.parse("https://wa.me/$phone")
+            intentChat.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            intentChat.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
             val packages = listOf("com.whatsapp", "com.whatsapp.w4b")
             var activityStarted = false
-
             for (pkg in packages) {
-                // Tenta com o JID moderno primeiro; se falhar, testa o legado
-                for (jid in listOf(jidModern, jidLegacy)) {
-                    try {
-                        val specificIntent = Intent(intent)
-                        specificIntent.setPackage(pkg)
-                        specificIntent.putExtra("jid", jid)
-                        specificIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        specificIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        specificIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        context.startActivity(specificIntent)
-                        activityStarted = true
-                        Log.d("WhatsAppPlugin", "ACTION_SEND OK: pkg=$pkg jid=$jid")
-                        break
-                    } catch (e: Exception) {
-                        Log.d("WhatsAppPlugin", "Could not start ACTION_SEND for pkg=$pkg jid=$jid: ${e.message}")
-                    }
+                try {
+                    val specificIntent = Intent(intentChat)
+                    specificIntent.setPackage(pkg)
+                    context.startActivity(specificIntent)
+                    activityStarted = true
+                    pendingPackage = pkg
+                    Log.d("WhatsAppPlugin", "Pre-Warm started for pkg=$pkg")
+                    break
+                } catch (e: Exception) {
+                    Log.d("WhatsAppPlugin", "Pre-Warm failed for pkg=$pkg: ${e.message}")
                 }
-                if (activityStarted) break
             }
-
             if (!activityStarted) {
-                val chooser = Intent.createChooser(intent, "Enviar via...")
-                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(chooser)
+                context.startActivity(intentChat)
             }
 
         } catch (e: Exception) {
