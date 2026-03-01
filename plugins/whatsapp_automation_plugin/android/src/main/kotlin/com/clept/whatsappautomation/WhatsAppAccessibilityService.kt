@@ -42,73 +42,38 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                     val root = rootInActiveWindow
                     if (root != null && WhatsAppAutomationPlugin.automationState > 0) {
                         Log.d(TAG, "Current UI State: ${WhatsAppAutomationPlugin.automationState}")
-                        when (WhatsAppAutomationPlugin.automationState) {
-                            1 -> {
-                                // Pode estar no Contact Picker ou já no Preview (se JID funcionou/contato salvo)
-                                if (findAndClickSendButton(root)) {
-                                    WhatsAppAutomationPlugin.automationState = 0
-                                    WhatsAppAutomationPlugin.isPendingSendClick = false
-                                    return
-                                }
-                                // Tenta achar botão Lupa de Pesquisar (Contact Picker)
-                                val searchBtn = findNodeById(root, "com.whatsapp:id/menuitem_search") 
-                                             ?: findNodeById(root, "com.whatsapp.w4b:id/menuitem_search")
-                                             ?: findNodesByText(root, listOf("Pesquisar", "Search", "Buscar")).firstOrNull()
+                            5 -> {
+                                // "Aguardando wa.me abrir o Chat"
+                                // Para ter certeza que a conversa abriu (e o JID foi inicializado no app), achamos a caixa de texto
+                                val entryBox = findNodeById(root, "com.whatsapp:id/entry") 
+                                            ?: findNodeById(root, "com.whatsapp.w4b:id/entry")
                                 
-                                if (searchBtn != null && searchBtn.isClickable) {
-                                    searchBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                                    WhatsAppAutomationPlugin.automationState = 2
+                                if (entryBox != null) {
+                                    Log.d(TAG, "Chat is open! Database updated. Firing hidden ACTION_SEND!")
+                                    WhatsAppAutomationPlugin.automationState = 4 // Passa pro envio de Preview
                                     attempts = 0
-                                    Log.d(TAG, "Clicked Search in Contact Picker")
-                                }
-                            }
-                            2 -> {
-                                // Tenta achar o Input de texto para digitar o número
-                                val searchInput = findNodeById(root, "com.whatsapp:id/search_src_text")
-                                               ?: findNodeById(root, "com.whatsapp.w4b:id/search_src_text")
-                                if (searchInput != null) {
-                                    val currentText = searchInput.text?.toString() ?: ""
-                                    if (currentText != WhatsAppAutomationPlugin.pendingPhone) {
-                                        val args = Bundle()
-                                        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, WhatsAppAutomationPlugin.pendingPhone)
-                                        searchInput.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-                                        Log.d(TAG, "Typed phone number in Search")
-                                    }
                                     
-                                    // Aguarda resultado: procurar "Conversar", "Chat" ou o próprio número
-                                    val chatNodes = findNodesByText(root, listOf("Conversar", "Chat", "Message", "Mensagem", WhatsAppAutomationPlugin.pendingPhone ?: "xxx"))
-                                    for (node in chatNodes) {
-                                        if (node.className?.contains("EditText") == true) continue
-                                        
-                                        var clickable: AccessibilityNodeInfo? = node
-                                        while (clickable != null && !clickable.isClickable) {
-                                            clickable = clickable.parent
-                                        }
-                                        if (clickable != null) {
-                                            clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                                            WhatsAppAutomationPlugin.automationState = 3
-                                            attempts = 0
-                                            Log.d(TAG, "Clicked Contact Row")
-                                            break
-                                        }
+                                    // Dispara o Media Intent por cima da conversa
+                                    val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND)
+                                    sendIntent.type = WhatsAppAutomationPlugin.pendingMimeType
+                                    sendIntent.putExtra(android.content.Intent.EXTRA_STREAM, WhatsAppAutomationPlugin.pendingUri)
+                                    sendIntent.putExtra("jid", "${WhatsAppAutomationPlugin.pendingPhone}@s.whatsapp.net")
+                                    if (!WhatsAppAutomationPlugin.pendingMessage.isNullOrEmpty()) {
+                                        sendIntent.putExtra(android.content.Intent.EXTRA_TEXT, WhatsAppAutomationPlugin.pendingMessage)            
                                     }
-                                }
-                            }
-                            3 -> {
-                                // Aguarda botão FAB verde de confirmar (Next) ou se foi pra Preview
-                                val nextFab = findNodeById(root, "com.whatsapp:id/send") 
-                                           ?: findNodeById(root, "com.whatsapp.w4b:id/send")
-                                           ?: findNodeById(root, "com.whatsapp:id/next")
-                                           ?: findNodeById(root, "com.whatsapp.w4b:id/next")
-                                
-                                if (nextFab != null && nextFab.isClickable) {
-                                    nextFab.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                                    WhatsAppAutomationPlugin.automationState = 4
-                                    attempts = 0
-                                    Log.d(TAG, "Clicked Next FAB in Contact Picker")
-                                } else if (findAndClickSendButton(root)) { // Se já pulou pra Tela Media Preview
-                                    WhatsAppAutomationPlugin.automationState = 0
-                                    WhatsAppAutomationPlugin.isPendingSendClick = false
+                                    sendIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    sendIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    sendIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    
+                                    val pkg = WhatsAppAutomationPlugin.pendingPackage
+                                    if (pkg != null) {
+                                        sendIntent.setPackage(pkg)
+                                    }
+                                    try {
+                                        startActivity(sendIntent)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error firing internal Action Send", e)
+                                    }
                                 }
                             }
                             4 -> {

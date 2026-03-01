@@ -72,6 +72,6 @@ Esta versão marca a transição de um protótipo avançado para um produto de n
 ### Melhorias na Automação Nativa e Campanhas
 - **Delay Cognitivo de Acessibilidade:** Em versões recentes do Android, a renderização de UI do WhatsApp tem um pequeno atraso. Modificamos o `WhatsAppAccessibilityService` nativo (Kotlin) instanciando um loop de retry assíncrono com delay (`Handler.postDelayed`). Isso resolve o bug crítico onde Campanhas abriam os contatos no WhatsApp, mas não clicavam no botão "Enviar".
 - **Sincronia de IDs:** Foram adicionados múltiplos selectors de Layout ("Send", "Enviar") e Node IDs atualizados do Business e Pessoal para ampliar a detecção de clique em dispositivos rápidos e lentos.
-
+- **Engine Híbrida de Mídia (Pre-Warm JID):** Foi solucionado o maior bloqueio do WhatsApp Android para Automação: o aplicativo agora consegue enviar arquivos e imagens para números Não-Salvos. A engine nativa faz um "Pré-Aquecimento" (Pre-Warm) da conversa via URL `wa.me`, forçando o banco de dados do WhatsApp a assimilar o JID (WhatsApp ID). Imediatamente após a UI carregar, o serviço de Acessibilidade injeta silenciosamente uma `Intent ACTION_SEND` com Payload (Arquivo) endereçado àquele JID validado, pulando a tela de Selecionador de Contatos e caindo de forma 100% segura na tela Media Preview.
 ---
 Para detalhes técnicos e logs de erros, consulte o arquivo [ISSUES.md](file:///c:/Users/clept/Documents/APPS/Automacao_Whatasapp/ISSUES.md).
