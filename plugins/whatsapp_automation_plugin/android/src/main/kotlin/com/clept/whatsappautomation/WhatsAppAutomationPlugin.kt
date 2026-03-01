@@ -24,10 +24,6 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
         var isPendingSendClick: Boolean = false
         var automationState: Int = 0
         var pendingPhone: String? = null
-        var pendingUri: android.net.Uri? = null
-        var pendingMimeType: String? = null
-        var pendingMessage: String? = null
-        var pendingPackage: String? = null
 
         @JvmStatic
         fun notifyNotification(data: Map<String, Any?>) {
@@ -209,39 +205,39 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
                 if (isImage) "image/*" else "*/*"
             } ?: (if (isImage) "image/*" else "*/*")
 
-            // Armazena variáveis para a Acessibilidade disparar o arquivo APÓS o WhatsApp registrar o Contato
-            pendingUri = uri
-            pendingMimeType = mimeType
-            pendingMessage = message
-            pendingPhone = phone
+            val intent = Intent(Intent.ACTION_SEND)
+            intent.type = mimeType
+            intent.putExtra(Intent.EXTRA_STREAM, uri)
+            intent.putExtra("jid", "$phone@s.whatsapp.net")
+            if (!message.isNullOrEmpty()) intent.putExtra(Intent.EXTRA_TEXT, message)            
+            
+            // Vai direto para o envio final (Contact Saved Preview)
             isPendingSendClick = true
-            automationState = 5
-
-            val intentChat = Intent(Intent.ACTION_VIEW)
-            val url = "https://wa.me/$phone"
-            intentChat.data = android.net.Uri.parse(url)
-            intentChat.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            intentChat.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            automationState = 4 
 
             val packages = listOf("com.whatsapp", "com.whatsapp.w4b")
             var activityStarted = false
             
             for (pkg in packages) {
                 try {
-                    val specificIntent = Intent(intentChat)
+                    val specificIntent = Intent(intent)
                     specificIntent.setPackage(pkg)
+                    specificIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    specificIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    specificIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     context.startActivity(specificIntent)
                     activityStarted = true
-                    pendingPackage = pkg
-                    Log.d("WhatsAppPlugin", "Started Pre-Warm chat (wa.me) for package: $pkg")
+                    Log.d("WhatsAppPlugin", "Started ACTION_SEND Direct for package: $pkg")
                     break
                 } catch (e: Exception) {
-                    Log.d("WhatsAppPlugin", "Could not start Pre-Warm text for package $pkg: ${e.message}")
+                    Log.d("WhatsAppPlugin", "Could not start ACTION_SEND for package $pkg: ${e.message}")
                 }
             }
 
             if (!activityStarted) {
-                context.startActivity(intentChat) 
+                val chooser = Intent.createChooser(intent, "Enviar via...")
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(chooser)
             }
 
         } catch (e: Exception) {

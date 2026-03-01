@@ -42,40 +42,7 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                     val root = rootInActiveWindow
                     if (root != null && WhatsAppAutomationPlugin.automationState > 0) {
                         Log.d(TAG, "Current UI State: ${WhatsAppAutomationPlugin.automationState}")
-                            5 -> {
-                                // "Aguardando wa.me abrir o Chat"
-                                // Para ter certeza que a conversa abriu (e o JID foi inicializado no app), achamos a caixa de texto
-                                val entryBox = findNodeById(root, "com.whatsapp:id/entry") 
-                                            ?: findNodeById(root, "com.whatsapp.w4b:id/entry")
-                                
-                                if (entryBox != null) {
-                                    Log.d(TAG, "Chat is open! Database updated. Firing hidden ACTION_SEND!")
-                                    WhatsAppAutomationPlugin.automationState = 4 // Passa pro envio de Preview
-                                    attempts = 0
-                                    
-                                    // Dispara o Media Intent por cima da conversa
-                                    val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND)
-                                    sendIntent.type = WhatsAppAutomationPlugin.pendingMimeType
-                                    sendIntent.putExtra(android.content.Intent.EXTRA_STREAM, WhatsAppAutomationPlugin.pendingUri)
-                                    sendIntent.putExtra("jid", "${WhatsAppAutomationPlugin.pendingPhone}@s.whatsapp.net")
-                                    if (!WhatsAppAutomationPlugin.pendingMessage.isNullOrEmpty()) {
-                                        sendIntent.putExtra(android.content.Intent.EXTRA_TEXT, WhatsAppAutomationPlugin.pendingMessage)            
-                                    }
-                                    sendIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    sendIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    sendIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                    
-                                    val pkg = WhatsAppAutomationPlugin.pendingPackage
-                                    if (pkg != null) {
-                                        sendIntent.setPackage(pkg)
-                                    }
-                                    try {
-                                        startActivity(sendIntent)
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error firing internal Action Send", e)
-                                    }
-                                }
-                            }
+                        when (WhatsAppAutomationPlugin.automationState) {
                             4 -> {
                                 // Tela final de envio (Media Preview ou Dialogo de Confirmação de PDF)
                                 if (findAndClickSendButton(root)) {
@@ -141,11 +108,9 @@ class WhatsAppAccessibilityService : AccessibilityService() {
         val ids = listOf(
             "com.whatsapp:id/send", 
             "com.whatsapp:id/send_container", 
-            "com.whatsapp:id/fab",
             "com.whatsapp:id/media_send",
             "com.whatsapp.w4b:id/send",
             "com.whatsapp.w4b:id/send_container",
-            "com.whatsapp.w4b:id/fab",
             "com.whatsapp.w4b:id/media_send"
         )
         for (id in ids) {
