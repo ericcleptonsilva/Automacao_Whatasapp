@@ -35,7 +35,8 @@ class WhatsAppAccessibilityService : AccessibilityService() {
             // Just find and click send button if needed (legacy fallback)
             val handler = android.os.Handler(android.os.Looper.getMainLooper())
             var attempts = 0
-            val maxAttempts = 20 // Retenta até 10 segundos (~20x 500ms)
+            val maxAttempts = 30 // Até 15 segundos (~30x 500ms)
+            var pickerSearchDone = false
 
             val checkRunnable = object : Runnable {
                 override fun run() {
@@ -73,21 +74,77 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                                 }
                             }
                             4 -> {
-                                // Tela final de envio (Media Preview ou Dialogo de Confirmação de PDF)
+                                // Tela final de envio (Media Preview)
                                 if (findAndClickSendButton(root)) {
                                     WhatsAppAutomationPlugin.automationState = 0
                                     WhatsAppAutomationPlugin.isPendingSendClick = false
                                     Log.d(TAG, "Clicked Final Send Button in Preview")
                                 } else {
                                     val btnSendDialog = findNodesByText(root, listOf("Send", "Enviar", "SEND", "ENVIAR", "Sim", "Yes"))
+                                    var clickedDialog = false
                                     for (btn in btnSendDialog) {
                                         if (btn.className?.contains("Button") == true) {
                                             btn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                                             WhatsAppAutomationPlugin.automationState = 0
                                             WhatsAppAutomationPlugin.isPendingSendClick = false
                                             Log.d(TAG, "Clicked Send in Alert Dialog")
+                                            clickedDialog = true
                                             break
                                         }
+                                    }
+                                    // Se depois de 5 tentativas ainda não achou o botão enviar,
+                                    // provavelmente estamos no Contact Picker → vai para State 6
+                                    if (!clickedDialog && attempts >= 5 && !pickerSearchDone) {
+                                        Log.d(TAG, "State 4: No Send button found after $attempts attempts. Switching to Contact Picker automation (State 6)")
+                                        WhatsAppAutomationPlugin.automationState = 6
+                                        attempts = 0
+                                    }
+                                }
+                            }
+                            6 -> {
+                                // Automatiza o Contact Picker do WhatsApp
+                                // Fase 1: Digitar o número no campo de busca
+                                if (!pickerSearchDone) {
+                                    val phone = WhatsAppAutomationPlugin.pendingPhone ?: ""
+                                    // Procura campo de busca (EditText editável que não seja o campo de mensagem)
+                                    val allEditTexts = mutableListOf<AccessibilityNodeInfo>()
+                                    collectNodes(root, allEditTexts) { it.className?.contains("EditText") == true && it.isEditable }
+                                    val searchField = allEditTexts.firstOrNull()
+                                    if (searchField != null) {
+                                        searchField.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                        val args = Bundle()
+                                        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, phone)
+                                        searchField.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                                        pickerSearchDone = true
+                                        Log.d(TAG, "State 6: Typed phone '$phone' in Contact Picker search field")
+                                    } else {
+                                        Log.d(TAG, "State 6: Search field not found yet (attempt $attempts)")
+                                    }
+                                } else {
+                                    // Fase 2: Aguarda resultados e clica no primeiro contato encontrado
+                                    val clickableRows = mutableListOf<AccessibilityNodeInfo>()
+                                    collectNodes(root, clickableRows) {
+                                        it.isClickable && 
+                                        (it.className?.contains("RelativeLayout") == true || 
+                                         it.className?.contains("LinearLayout") == true ||
+                                         it.className?.contains("ConstraintLayout") == true ||
+                                         it.className?.contains("FrameLayout") == true) &&
+                                        it.childCount > 0
+                                    }
+                                    // Filtra para evitar clickar na barra de topo ou em botões de navegação
+                                    val contactRow = clickableRows.firstOrNull { node ->
+                                        val bounds = android.graphics.Rect()
+                                        node.getBoundsInScreen(bounds)
+                                        bounds.top > 200 && bounds.height() in 60..300
+                                    }
+                                    if (contactRow != null) {
+                                        contactRow.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                        Log.d(TAG, "State 6: Clicked contact row in picker. Switching back to State 4.")
+                                        WhatsAppAutomationPlugin.automationState = 4
+                                        pickerSearchDone = false
+                                        attempts = 0
+                                    } else {
+                                        Log.d(TAG, "State 6: Waiting for contact list results (attempt $attempts)...")
                                     }
                                 }
                             }
@@ -199,6 +256,18 @@ class WhatsAppAccessibilityService : AccessibilityService() {
             if (child != null) {
                 findNodesByContentDescription(child, descriptions, outList)
             }
+        }
+    }
+
+    private fun collectNodes(
+        node: AccessibilityNodeInfo,
+        out: MutableList<AccessibilityNodeInfo>,
+        predicate: (AccessibilityNodeInfo) -> Boolean
+    ) {
+        if (predicate(node)) out.add(node)
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            collectNodes(child, out, predicate)
         }
     }
 
