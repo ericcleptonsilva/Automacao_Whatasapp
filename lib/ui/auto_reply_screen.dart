@@ -399,7 +399,7 @@ class _AutoReplyScreenState extends State<AutoReplyScreen> {
                    // Provider Selection
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Provedor de I.A.", border: OutlineInputBorder()),
-                    value: _aiProvider,
+                    initialValue: _aiProvider,
                     items: const [
                       DropdownMenuItem(value: "Gemini", child: Text("Google Gemini")),
                       DropdownMenuItem(value: "Claude", child: Text("Anthropic Claude")),

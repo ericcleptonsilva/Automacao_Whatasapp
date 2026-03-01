@@ -37,7 +37,7 @@ class _CRMScreenState extends State<CRMScreen> {
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(existingDepartment == null ? 'Novo Departamento' : 'Editar Departamento'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -59,7 +59,7 @@ class _CRMScreenState extends State<CRMScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
           FilledButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty && phoneController.text.isNotEmpty) {
@@ -77,8 +77,8 @@ class _CRMScreenState extends State<CRMScreen> {
                 }
                 
                 await _loadDepartments();
-                if (!mounted) return;
-                Navigator.pop(context);
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
               }
             },
             child: const Text('Salvar'),

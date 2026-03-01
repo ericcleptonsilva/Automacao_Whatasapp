@@ -1,5 +1,6 @@
+import 'package:google_mlkit_smart_reply/google_mlkit_smart_reply.dart';
+import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'logger_service.dart';
-
 class OfflineAIService {
   final SmartReply _smartReply = SmartReply();
   

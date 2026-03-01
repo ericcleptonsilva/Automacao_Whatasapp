@@ -40,7 +40,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(contact == null ? 'Adicionar Contato' : 'Editar Contato'),
         content: SingleChildScrollView(
           child: Column(
@@ -87,8 +87,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   tags: tags,
                 );
                 await _repository.saveContact(newContact);
-                if (!mounted) return;
-                Navigator.pop(context);
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
                 _loadContacts();
               }
             },
@@ -371,7 +371,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
      final controller = TextEditingController();
      await showDialog(
        context: context,
-       builder: (context) => AlertDialog(
+       builder: (dialogContext) => AlertDialog(
          title: const Text("Importar Contatos"),
          content: SizedBox(
            width: double.maxFinite,
@@ -397,7 +397,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
          ),
          actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancelar'),
             ),
             TextButton(
@@ -423,8 +423,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                        }
                      }
                    }
-                   if (!mounted) return;
-                   Navigator.pop(context);
+                   if (!dialogContext.mounted) return;
+                   Navigator.pop(dialogContext);
                    ScaffoldMessenger.of(context).showSnackBar(
                      SnackBar(content: Text('$addedCount contatos importados com sucesso!')),
                    );
