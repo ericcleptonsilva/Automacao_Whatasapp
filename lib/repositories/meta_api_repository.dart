@@ -27,11 +27,11 @@ class MetaApiRepository {
 
   Future<bool> hasCredentials() async {
     final creds = await getCredentials();
-    return creds['accessToken'] != null && 
-           creds['phoneId'] != null && 
-           creds['businessId'] != null;
+    return creds['accessToken'] != null &&
+        creds['phoneId'] != null &&
+        creds['businessId'] != null;
   }
-  
+
   Future<void> clearCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyAccessToken);

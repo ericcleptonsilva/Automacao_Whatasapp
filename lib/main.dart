@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart'; // Add this for kIsWeb
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/native_service.dart';
 import 'ui/contacts_screen.dart';
 import 'ui/campaign_screen.dart';
@@ -19,21 +18,26 @@ import 'services/ad_service.dart';
 import 'services/logger_service.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:showcaseview/showcaseview.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AdService.initialize();
-  
+
   // Ensure we only initialize the service from the UI Isolate
-  final bool isMainIsolate = Isolate.current.debugName == 'main' || Isolate.current.debugName == null;
-  
+  final bool isMainIsolate =
+      Isolate.current.debugName == 'main' || Isolate.current.debugName == null;
+
   if (isMainIsolate) {
     try {
       final service = FlutterBackgroundService();
       if (!await service.isRunning()) {
         await initializeBackgroundService();
       } else {
-      LoggerService.log("BackgroundService: Already running, skipping initialization in main.");
+        LoggerService.log(
+          "BackgroundService: Already running, skipping initialization in main.",
+        );
       }
     } catch (e) {
       LoggerService.log("BackgroundService initialization info: $e");
@@ -59,9 +63,12 @@ class ServiceStatusProvider extends ChangeNotifier {
 
   Future<void> checkStatus() async {
     if (kIsWeb) return;
-    isAccessibilityEnabled = await _nativeService.isAccessibilityServiceEnabled();
-    isNotificationEnabled = await _nativeService.isNotificationListenerEnabled();
-    isBatteryOptimizationIgnored = await _nativeService.isIgnoringBatteryOptimizations();
+    isAccessibilityEnabled = await _nativeService
+        .isAccessibilityServiceEnabled();
+    isNotificationEnabled = await _nativeService
+        .isNotificationListenerEnabled();
+    isBatteryOptimizationIgnored = await _nativeService
+        .isIgnoringBatteryOptimizations();
     notifyListeners();
   }
 
@@ -101,7 +108,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      home: const DashboardScreen(),
+      home: ShowCaseWidget(builder: (context) => const DashboardScreen()),
     );
   }
 }
@@ -113,11 +120,21 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
-  
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   final AutoReplyService _autoReplyService = AutoReplyService();
   BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
+
+  // Showcase Keys
+  final GlobalKey _keyAcesso = GlobalKey();
+  final GlobalKey _keyCampanha = GlobalKey();
+  final GlobalKey _keyContatos = GlobalKey();
+  final GlobalKey _keyNotificacoes = GlobalKey();
+  final GlobalKey _keyRegras = GlobalKey();
+  final GlobalKey _keyApoio = GlobalKey();
+  final GlobalKey _keyStatusNotif = GlobalKey();
+  final GlobalKey _keyStatusBateria = GlobalKey();
 
   void _loadBannerAd() {
     _bannerAd = AdService.createBannerAd(
@@ -127,7 +144,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         });
       },
       onAdFailedToLoad: (ad, error) {
-      LoggerService.log('BannerAd failed to load: $error');
+        LoggerService.log('BannerAd failed to load: $error');
         ad.dispose();
       },
     )..load();
@@ -141,23 +158,46 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     // Check initial status
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<ServiceStatusProvider>().checkStatus();
-      
-      // Coordination: If background service is likely running, 
+
+      // Coordination: If background service is likely running,
       // we might want to skip UI listening to avoid duplicates.
       // For now, we'll start it but added safety in AutoReplyService (cooldown/processing).
       // A more robust way is checking if the service is active:
       try {
         final isServiceRunning = await FlutterBackgroundService().isRunning();
         if (!isServiceRunning) {
-        LoggerService.log("Dashboard: Background service not running, starting UI listener branch.");
+          LoggerService.log(
+            "Dashboard: Background service not running, starting UI listener branch.",
+          );
           _autoReplyService.startListening();
         } else {
-        LoggerService.log("Dashboard: Background service already active.");
+          LoggerService.log("Dashboard: Background service already active.");
         }
       } catch (e) {
-      LoggerService.log("Dashboard: Error checking background service status: $e");
+        LoggerService.log(
+          "Dashboard: Error checking background service status: $e",
+        );
         // Fallback: start listening in UI if we can't confirm background service
         _autoReplyService.startListening();
+      }
+
+      // Check if first launch for Showcase
+      if (mounted) {
+        final prefs = await SharedPreferences.getInstance();
+        final isFirstLaunch = prefs.getBool('first_launch_tour') ?? true;
+        if (isFirstLaunch && mounted) {
+          ShowcaseView.get().startShowCase([
+            _keyAcesso,
+            _keyStatusNotif,
+            _keyStatusBateria,
+            _keyCampanha,
+            _keyContatos,
+            _keyRegras,
+            _keyNotificacoes,
+            _keyApoio,
+          ]);
+          await prefs.setBool('first_launch_tour', false);
+        }
       }
     });
   }
@@ -201,14 +241,28 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               const Text("PASSO A PASSO PARA ATIVAR:"),
               const SizedBox(height: 8),
               const Text("1. Clique no botão abaixo 'ABRIR CONFIGS DO APP'."),
-              const Text("2. Se vir os 3 pontinhos (⋮) no topo, clique neles e selecione 'Permitir configurações restritas'."),
+              const Text(
+                "2. Se vir os 3 pontinhos (⋮) no topo, clique neles e selecione 'Permitir configurações restritas'.",
+              ),
               const SizedBox(height: 8),
-              const Text("SE NÃO VIR OS 3 PONTINHOS:", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-              const Text("1. Rola a tela das Configurações do App até o final."),
-              const Text("2. Procure pela opção 'PERMITIR CONFIGURAÇÕES RESTRITAS' em baixo da última opção de menu."),
+              const Text(
+                "SE NÃO VIR OS 3 PONTINHOS:",
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Text(
+                "1. Rola a tela das Configurações do App até o final.",
+              ),
+              const Text(
+                "2. Procure pela opção 'PERMITIR CONFIGURAÇÕES RESTRITAS' em baixo da última opção de menu.",
+              ),
               const Text("3. Clique nela e coloque sua senha/biometria."),
               const SizedBox(height: 12),
-              const Text("Após isso, volte aqui e ative a Acessibilidade normalmente."),
+              const Text(
+                "Após isso, volte aqui e ative a Acessibilidade normalmente.",
+              ),
             ],
           ),
         ),
@@ -238,7 +292,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           children: [
             Icon(Icons.accessibility_new, color: Color(0xFF075E54)),
             SizedBox(width: 8),
-            Expanded(child: Text("Acessibilidade Requerida", style: TextStyle(fontSize: 18))),
+            Expanded(
+              child: Text(
+                "Acessibilidade Requerida",
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
           ],
         ),
         content: const SingleChildScrollView(
@@ -261,8 +320,16 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               Navigator.pop(context);
               context.read<ServiceStatusProvider>().openAccessibilitySettings();
             },
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF075E54)),
-            child: const Text("CONCORDO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF075E54),
+            ),
+            child: const Text(
+              "CONCORDO",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -276,35 +343,65 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     return Scaffold(
       drawer: NavigationDrawer(
         onDestinationSelected: (index) {
-           Navigator.pop(context); // Close drawer
-           switch (index) {
-             case 0: // Dashboard - do nothing or scroll top
-               break;
-             case 1:
-               Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen()));
-               break;
-             case 2:
-               Navigator.push(context, MaterialPageRoute(builder: (_) => const CampaignScreen()));
-               break;
-             case 3:
-               Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationLogScreen()));
-               break;
-             case 4:
-               Navigator.push(context, MaterialPageRoute(builder: (_) => const AutoReplyScreen()));
-               break;
-             case 5:
-               Navigator.push(context, MaterialPageRoute(builder: (_) => const MetaApiSettingsScreen()));
-               break;
-             case 6:
-               Navigator.push(context, MaterialPageRoute(builder: (_) => const CRMScreen()));
-               break;
-             case 7:
-               Navigator.push(context, MaterialPageRoute(builder: (_) => const CampaignHistoryScreen()));
-               break;
-             case 8:
-               Navigator.push(context, MaterialPageRoute(builder: (_) => const LLMManagementScreen()));
-               break;
-           }
+          Navigator.pop(context); // Close drawer
+          switch (index) {
+            case 0: // Dashboard - do nothing or scroll top
+              break;
+            case 1:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ContactsScreen()),
+              );
+              break;
+            case 2:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CampaignScreen()),
+              );
+              break;
+            case 3:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const NotificationLogScreen(),
+                ),
+              );
+              break;
+            case 4:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AutoReplyScreen()),
+              );
+              break;
+            case 5:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const MetaApiSettingsScreen(),
+                ),
+              );
+              break;
+            case 6:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CRMScreen()),
+              );
+              break;
+            case 7:
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CampaignHistoryScreen(),
+                ),
+              );
+              break;
+            case 8:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LLMManagementScreen()),
+              );
+              break;
+          }
         },
         selectedIndex: 0, // Dashboard is always 0 in this context
         children: [
@@ -368,46 +465,68 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             padding: EdgeInsets.fromLTRB(28, 16, 16, 10),
             child: Text('Status dos Serviços'),
           ),
-           Padding(
-             padding: const EdgeInsets.symmetric(horizontal: 28),
-             child: Column(
-               children: [
-                 SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    secondary: Icon(statusProvider.isAccessibilityEnabled ? Icons.check_circle : Icons.error, 
-                      color: statusProvider.isAccessibilityEnabled ? Colors.green : Colors.red, size: 22),
-                    title: const Text("Acessibilidade"),
-                    value: statusProvider.isAccessibilityEnabled,
-                    onChanged: (val) {
-                      if (val) {
-                        _showAccessibilityDisclosure(context);
-                      } else {
-                        statusProvider.openAccessibilitySettings();
-                      }
-                    },
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  secondary: Icon(
+                    statusProvider.isAccessibilityEnabled
+                        ? Icons.check_circle
+                        : Icons.error,
+                    color: statusProvider.isAccessibilityEnabled
+                        ? Colors.green
+                        : Colors.red,
+                    size: 22,
                   ),
-                   SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    secondary: Icon(statusProvider.isNotificationEnabled ? Icons.check_circle : Icons.error, 
-                      color: statusProvider.isNotificationEnabled ? Colors.green : Colors.red, size: 22),
-                    title: const Text("Notificações"),
-                    value: statusProvider.isNotificationEnabled,
-                    onChanged: (val) => statusProvider.openNotificationSettings(),
+                  title: const Text("Acessibilidade"),
+                  value: statusProvider.isAccessibilityEnabled,
+                  onChanged: (val) {
+                    if (val) {
+                      _showAccessibilityDisclosure(context);
+                    } else {
+                      statusProvider.openAccessibilitySettings();
+                    }
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  secondary: Icon(
+                    statusProvider.isNotificationEnabled
+                        ? Icons.check_circle
+                        : Icons.error,
+                    color: statusProvider.isNotificationEnabled
+                        ? Colors.green
+                        : Colors.red,
+                    size: 22,
                   ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    secondary: Icon(statusProvider.isBatteryOptimizationIgnored ? Icons.check_circle : Icons.battery_alert, 
-                      color: statusProvider.isBatteryOptimizationIgnored ? Colors.green : Colors.orange, size: 22),
-                    title: const Text("Otimização Bateria"),
-                    value: statusProvider.isBatteryOptimizationIgnored,
-                    onChanged: (val) => statusProvider.requestIgnoreBatteryOptimizations(),
+                  title: const Text("Notificações"),
+                  value: statusProvider.isNotificationEnabled,
+                  onChanged: (val) => statusProvider.openNotificationSettings(),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  secondary: Icon(
+                    statusProvider.isBatteryOptimizationIgnored
+                        ? Icons.check_circle
+                        : Icons.battery_alert,
+                    color: statusProvider.isBatteryOptimizationIgnored
+                        ? Colors.green
+                        : Colors.orange,
+                    size: 22,
                   ),
-               ],
-             ),
-           ),
+                  title: const Text("Otimização Bateria"),
+                  value: statusProvider.isBatteryOptimizationIgnored,
+                  onChanged: (val) =>
+                      statusProvider.requestIgnoreBatteryOptimizations(),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
       body: CustomScrollView(
@@ -416,7 +535,24 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             title: const Text('Painel de Controle'),
             pinned: true,
             floating: true,
-            // colors are auto-handled by M3 theme from seed
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.help_outline),
+                tooltip: 'Tour Guiado',
+                onPressed: () {
+                  ShowcaseView.get().startShowCase([
+                    _keyAcesso,
+                    _keyStatusNotif,
+                    _keyStatusBateria,
+                    _keyCampanha,
+                    _keyContatos,
+                    _keyRegras,
+                    _keyNotificacoes,
+                    _keyApoio,
+                  ]);
+                },
+              ),
+            ],
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -427,36 +563,57 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   Row(
                     children: [
                       Expanded(
-                        child: buildStatusCard(
-                          context, 
-                          title: "Acessibilidade", 
-                          isEnabled: statusProvider.isAccessibilityEnabled,
-                          onTap: () {
-                            if (!statusProvider.isAccessibilityEnabled) {
-                              _showAccessibilityDisclosure(context);
-                            } else {
-                              statusProvider.openAccessibilitySettings();
-                            }
-                          },
+                        child: Showcase(
+                          key: _keyAcesso,
+                          description:
+                              "Ative a Acessibilidade para permitir que a Automação envie as mensagens no WhatsApp por você.",
+                          child: buildStatusCard(
+                            context,
+                            title: "Acessibilidade",
+                            isEnabled: statusProvider.isAccessibilityEnabled,
+                            onTap: () {
+                              if (!statusProvider.isAccessibilityEnabled) {
+                                _showAccessibilityDisclosure(context);
+                              } else {
+                                statusProvider.openAccessibilitySettings();
+                              }
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: buildStatusCard(
-                          context, 
-                          title: "Notificações", 
-                          isEnabled: statusProvider.isNotificationEnabled,
-                          onTap: statusProvider.openNotificationSettings,
+                        child: Showcase(
+                          key: _keyStatusNotif,
+                          title: "Ler Notificações",
+                          description:
+                              "Permita que o app leia as mensagens que chegam para poder responder automaticamente.",
+                          child: buildStatusCard(
+                            context,
+                            title: "Notificações",
+                            isEnabled: statusProvider.isNotificationEnabled,
+                            onTap: statusProvider.openNotificationSettings,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: buildStatusCard(
-                          context, 
-                          title: "Bateria", 
-                          isEnabled: statusProvider.isBatteryOptimizationIgnored,
-                          onTap: statusProvider.requestIgnoreBatteryOptimizations,
-                          icon: statusProvider.isBatteryOptimizationIgnored ? Icons.battery_charging_full : Icons.battery_alert,
+                        child: Showcase(
+                          key: _keyStatusBateria,
+                          title: "Economia de Bateria",
+                          description:
+                              "Desative a restrição de bateria para que o robô não 'durma' e continue respondendo mesmo com a tela apagada.",
+                          child: buildStatusCard(
+                            context,
+                            title: "Bateria",
+                            isEnabled:
+                                statusProvider.isBatteryOptimizationIgnored,
+                            onTap: statusProvider
+                                .requestIgnoreBatteryOptimizations,
+                            icon: statusProvider.isBatteryOptimizationIgnored
+                                ? Icons.battery_charging_full
+                                : Icons.battery_alert,
+                          ),
                         ),
                       ),
                     ],
@@ -466,110 +623,233 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                       padding: const EdgeInsets.only(top: 10),
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.help_outline, size: 18),
-                        label: const Text("Problemas Ativando no Android 13/14?"),
+                        label: const Text(
+                          "Problemas Ativando no Android 13/14?",
+                        ),
                         onPressed: () => _showSamsungHelp(context),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Theme.of(context).colorScheme.error,
-                          side: BorderSide(color: Theme.of(context).colorScheme.error),
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
                     ),
                   const SizedBox(height: 20),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text("Acesso Rápido", style: Theme.of(context).textTheme.headlineSmall),
+                    child: Text(
+                      "Acesso Rápido",
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   GridView.count(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 3, // Changed from 2 to 3 to be more compact
+                    crossAxisCount: 3,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
                     childAspectRatio: 1.0,
                     children: [
-                      buildShortcutCard(context, icon: Icons.campaign, label: "Campanha", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CampaignScreen()))),
-                      buildShortcutCard(context, icon: Icons.people, label: "Contatos", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen()))),
-                      buildShortcutCard(context, icon: Icons.history, label: "Histórico", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationLogScreen()))),
-                      buildShortcutCard(context, icon: Icons.smart_toy, label: "Regras", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AutoReplyScreen()))),
-                      buildShortcutCard(context, icon: Icons.api, label: "API", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MetaApiSettingsScreen()))),
-                       buildShortcutCard(context, icon: Icons.business, label: "CRM", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CRMScreen()))),
+                      Showcase(
+                        key: _keyCampanha,
+                        description:
+                            "Aqui é onde a mágica acontece. Crie e envie mensagens em massa.",
+                        child: buildShortcutCard(
+                          context,
+                          icon: Icons.campaign,
+                          label: "Campanha",
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CampaignScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Showcase(
+                        key: _keyContatos,
+                        description:
+                            "Adicione e selecione sua lista de clientes ou grupos antes de disparar.",
+                        child: buildShortcutCard(
+                          context,
+                          icon: Icons.people,
+                          label: "Contatos",
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ContactsScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Showcase(
+                        key: _keyNotificacoes,
+                        description:
+                            "Veja o log e Histórico de sucesso de todos os disparos feitos.",
+                        child: buildShortcutCard(
+                          context,
+                          icon: Icons.history,
+                          label: "Histórico",
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NotificationLogScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Showcase(
+                        key: _keyRegras,
+                        description:
+                            "Respostas Rápidas! Crie auto-reply inteligentes reagindo à mensagens recebidas.",
+                        child: buildShortcutCard(
+                          context,
+                          icon: Icons.smart_toy,
+                          label: "Regras",
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AutoReplyScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      buildShortcutCard(
+                        context,
+                        icon: Icons.api,
+                        label: "API",
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MetaApiSettingsScreen(),
+                          ),
+                        ),
+                      ),
+                      buildShortcutCard(
+                        context,
+                        icon: Icons.business,
+                        label: "CRM",
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CRMScreen()),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   // Destaque Doação
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Theme.of(context).colorScheme.primary,
-                          Theme.of(context).colorScheme.secondary,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                  Showcase(
+                    key: _keyApoio,
+                    description:
+                        "Por favor, apoie esse incrível projeto e o desenvolvedor se a ferramenta está gerando valor e economizando seu tempo! O PIX é copiado com 1 click.",
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context).colorScheme.secondary,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                           Clipboard.setData(const ClipboardData(text: "5fc448aa-6954-4fcd-b9b1-76d4af8c7d11"));
-                           ScaffoldMessenger.of(context).showSnackBar(
-                             const SnackBar(content: Text("Chave PIX copiada! Obrigado pelo apoio! ❤️")),
-                           );
-                        },
                         borderRadius: BorderRadius.circular(16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.favorite, color: Colors.white, size: 28),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    "Apoie este Projeto!",
-                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            Clipboard.setData(
+                              const ClipboardData(
+                                text: "5fc448aa-6954-4fcd-b9b1-76d4af8c7d11",
                               ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                "Mantenha o sistema evoluindo. Toque para copiar o PIX.",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.white70, fontSize: 13),
-                              ),
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(30),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Chave PIX copiada! Obrigado pelo apoio! ❤️",
                                 ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.copy, color: Colors.white, size: 16),
-                                    SizedBox(width: 8),
-                                    Text("Copiar Chave PIX", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    const Icon(
+                                      Icons.favorite,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      "Apoie este Projeto!",
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
                                   ],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 8),
+                                const Text(
+                                  "Mantenha o sistema evoluindo. Toque para copiar o PIX.",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.copy,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Copiar Chave PIX",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -607,29 +887,74 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     );
   }
 
-   Widget buildStatusCard(BuildContext context, {required String title, required bool isEnabled, required VoidCallback onTap, IconData? icon}) {
+  Widget buildStatusCard(
+    BuildContext context, {
+    required String title,
+    required bool isEnabled,
+    required VoidCallback onTap,
+    IconData? icon,
+  }) {
     final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
-      color: isEnabled ? colorScheme.primaryContainer : (title == "Bateria" ? Colors.orange.withValues(alpha: 0.2) : colorScheme.errorContainer),
+      color: isEnabled
+          ? colorScheme.primaryContainer
+          : (title == "Bateria"
+                ? Colors.orange.withValues(alpha: 0.2)
+                : colorScheme.errorContainer),
       child: InkWell(
-        onTap: kIsWeb ? () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Este recurso só está disponível em dispositivos Android.")),
-          );
-        } : onTap,
+        onTap: kIsWeb
+            ? () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      "Este recurso só está disponível em dispositivos Android.",
+                    ),
+                  ),
+                );
+              }
+            : onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              Icon(icon ?? (isEnabled ? Icons.check_circle : Icons.error), 
-                color: isEnabled ? colorScheme.onPrimaryContainer : (title == "Bateria" ? Colors.orange[900] : colorScheme.onErrorContainer), 
-                size: 32),
+              Icon(
+                icon ?? (isEnabled ? Icons.check_circle : Icons.error),
+                color: isEnabled
+                    ? colorScheme.onPrimaryContainer
+                    : (title == "Bateria"
+                          ? Colors.orange[900]
+                          : colorScheme.onErrorContainer),
+                size: 32,
+              ),
               const SizedBox(height: 8),
-              Text(title, style: TextStyle(color: isEnabled ? colorScheme.onPrimaryContainer : (title == "Bateria" ? Colors.orange[900] : colorScheme.onErrorContainer), fontWeight: FontWeight.bold)),
-              Text(kIsWeb ? "Indisponível (Web)" : (isEnabled ? "Ativo" : (title == "Bateria" ? "Restrito" : "Inativo")), 
-                style: TextStyle(color: isEnabled ? colorScheme.onPrimaryContainer : (title == "Bateria" ? Colors.orange[900] : colorScheme.onErrorContainer), fontSize: 12)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: isEnabled
+                      ? colorScheme.onPrimaryContainer
+                      : (title == "Bateria"
+                            ? Colors.orange[900]
+                            : colorScheme.onErrorContainer),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                kIsWeb
+                    ? "Indisponível (Web)"
+                    : (isEnabled
+                          ? "Ativo"
+                          : (title == "Bateria" ? "Restrito" : "Inativo")),
+                style: TextStyle(
+                  color: isEnabled
+                      ? colorScheme.onPrimaryContainer
+                      : (title == "Bateria"
+                            ? Colors.orange[900]
+                            : colorScheme.onErrorContainer),
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
         ),
@@ -637,7 +962,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     );
   }
 
-  Widget buildShortcutCard(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget buildShortcutCard(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return Card(
       elevation: 2,
       child: InkWell(
@@ -648,7 +978,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           children: [
             Icon(icon, size: 36, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
           ],
         ),
       ),

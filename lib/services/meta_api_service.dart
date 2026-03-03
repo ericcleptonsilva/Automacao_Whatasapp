@@ -20,7 +20,7 @@ class MetaApiService {
     }
 
     final url = Uri.parse('https://graph.facebook.com/v18.0/$phoneId/messages');
-    
+
     try {
       final response = await http.post(
         url,
@@ -33,10 +33,7 @@ class MetaApiService {
           "recipient_type": "individual",
           "to": to,
           "type": "text",
-          "text": {
-            "preview_url": false,
-            "body": message
-          }
+          "text": {"preview_url": false, "body": message},
         }),
       );
 

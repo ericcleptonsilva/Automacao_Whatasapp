@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 class LoggerService {
   static const String _fileName = 'app_logs.txt';
-  
+
   // Gets the persistence file securely
   static Future<File> get _localFile async {
     final directory = await getApplicationDocumentsDirectory();
@@ -17,10 +17,10 @@ class LoggerService {
       final file = await _localFile;
       final timestamp = DateTime.now().toIso8601String();
       final logMessage = '[$timestamp] $message\n';
-      
+
       // Append to file, create if it doesn't exist
       await file.writeAsString(logMessage, mode: FileMode.append);
-      
+
       // Print to console normally for dev
       debugPrint("LoggerService: $message");
     } catch (e) {

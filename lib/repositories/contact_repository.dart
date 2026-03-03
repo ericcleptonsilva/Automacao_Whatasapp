@@ -8,7 +8,7 @@ class ContactRepository {
   Future<void> saveContact(Contact contact) async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> contactsJson = prefs.getStringList(_keyContacts) ?? [];
-    
+
     // Check if exists and update, or add new
     final existingIndex = contactsJson.indexWhere((c) {
       final decoded = jsonDecode(c);
@@ -27,10 +27,8 @@ class ContactRepository {
   Future<List<Contact>> getContacts() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> contactsJson = prefs.getStringList(_keyContacts) ?? [];
-    
-    return contactsJson
-        .map((c) => Contact.fromJson(jsonDecode(c)))
-        .toList();
+
+    return contactsJson.map((c) => Contact.fromJson(jsonDecode(c))).toList();
   }
 
   Future<void> deleteContact(String id) async {
@@ -40,7 +38,7 @@ class ContactRepository {
   Future<void> deleteContacts(List<String> ids) async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> contactsJson = prefs.getStringList(_keyContacts) ?? [];
-    
+
     contactsJson.removeWhere((c) {
       final decoded = jsonDecode(c);
       return ids.contains(decoded['id']);

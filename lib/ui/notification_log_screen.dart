@@ -16,7 +16,7 @@ class _NotificationLogScreenState extends State<NotificationLogScreen> {
   void initState() {
     super.initState();
     _loadLogs();
-    
+
     NativeService().notificationStream.listen((data) {
       if (mounted) {
         setState(() {
@@ -46,8 +46,14 @@ class _NotificationLogScreenState extends State<NotificationLogScreen> {
                 children: [
                   Icon(Icons.notifications_none, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text('Aguardando notificações...', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                  Text('Certifique-se de que a permissão está ativada.', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'Aguardando notificações...',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  Text(
+                    'Certifique-se de que a permissão está ativada.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             )
@@ -56,7 +62,10 @@ class _NotificationLogScreenState extends State<NotificationLogScreen> {
               itemBuilder: (context, index) {
                 final log = _logs[index];
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: Theme.of(context).colorScheme.secondary,

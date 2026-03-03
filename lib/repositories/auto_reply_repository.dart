@@ -6,7 +6,7 @@ class AutoReplyRepository {
   static const String _keyIsEnabled = 'auto_reply_enabled';
   static const String _keyMessage = 'auto_reply_message';
   static const String _keyRules = 'auto_reply_rules';
-  
+
   // AI Keys
   static const String _keyAiEnabled = 'ai_auto_reply_enabled';
   static const String _keyAiApiKey = 'ai_api_key';
@@ -33,7 +33,8 @@ class AutoReplyRepository {
   Future<String> getAiModel() async {
     final prefs = await _getPrefs();
     String model = prefs.getString(_keyAiModel) ?? 'llama-3.1-8b-instant';
-    if (model == 'gemini-1.5-flash-latest' || model == 'gemini-1.5-flash') return 'llama-3.1-8b-instant';
+    if (model == 'gemini-1.5-flash-latest' || model == 'gemini-1.5-flash')
+      return 'llama-3.1-8b-instant';
     return model;
   }
 
@@ -104,7 +105,8 @@ class AutoReplyRepository {
 
   Future<String> getAutoReplyMessage() async {
     final prefs = await _getPrefs();
-    return prefs.getString(_keyMessage) ?? "Estou ausente no momento. Responderei assim que possível.";
+    return prefs.getString(_keyMessage) ??
+        "Estou ausente no momento. Responderei assim que possível.";
   }
 
   Future<void> setAutoReplyMessage(String message) async {
@@ -116,7 +118,7 @@ class AutoReplyRepository {
     final prefs = await _getPrefs();
     final String? rulesJson = prefs.getString(_keyRules);
     if (rulesJson == null) return [];
-    
+
     final List<dynamic> decoded = jsonDecode(rulesJson);
     return decoded.map((e) => AutoReplyRule.fromJson(e)).toList();
   }
@@ -150,8 +152,8 @@ class AutoReplyRepository {
 
   Future<String> getAiPrompt() async {
     final prefs = await _getPrefs();
-    return prefs.getString(_keyAiPrompt) ?? 
-      "Você é um assistente virtual útil e educado. Responda de forma curta e direta.";
+    return prefs.getString(_keyAiPrompt) ??
+        "Você é um assistente virtual útil e educado. Responda de forma curta e direta.";
   }
 
   Future<void> setAiPrompt(String prompt) async {
@@ -212,16 +214,17 @@ class AutoReplyRepository {
 
   Future<Map<String, String>> getAvailableProviders() async {
     final Map<String, String> available = {};
-    
+
     final gemini = await getAiApiKey();
     if (gemini != null && gemini.isNotEmpty) available['Gemini'] = gemini;
-    
+
     final claude = await getClaudeKey();
     if (claude != null && claude.isNotEmpty) available['Claude'] = claude;
-    
+
     final deepseek = await getDeepSeekKey();
-    if (deepseek != null && deepseek.isNotEmpty) available['DeepSeek'] = deepseek;
-    
+    if (deepseek != null && deepseek.isNotEmpty)
+      available['DeepSeek'] = deepseek;
+
     final groq = await getGroqKey();
     if (groq != null && groq.isNotEmpty) available['Groq'] = groq;
 
@@ -229,9 +232,9 @@ class AutoReplyRepository {
     if (mistral != null && mistral.isNotEmpty) available['Mistral'] = mistral;
 
     final openRouter = await getOpenRouterKey();
-    if (openRouter != null && openRouter.isNotEmpty) available['OpenRouter'] = openRouter;
-    
+    if (openRouter != null && openRouter.isNotEmpty)
+      available['OpenRouter'] = openRouter;
+
     return available;
   }
 }
-

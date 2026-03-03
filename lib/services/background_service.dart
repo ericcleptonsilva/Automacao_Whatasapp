@@ -11,7 +11,8 @@ Future<void> initializeBackgroundService() async {
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'foreground_service_channel',
     'Serviço em Segundo Plano',
-    description: 'Este serviço mantém o app rodando para processar notificações.',
+    description:
+        'Este serviço mantém o app rodando para processar notificações.',
     importance: Importance.low,
   );
 
@@ -20,7 +21,8 @@ Future<void> initializeBackgroundService() async {
 
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
+        AndroidFlutterLocalNotificationsPlugin
+      >()
       ?.createNotificationChannel(channel);
 
   await service.configure(
@@ -30,7 +32,8 @@ Future<void> initializeBackgroundService() async {
       isForegroundMode: true,
       notificationChannelId: 'foreground_service_channel',
       initialNotificationTitle: 'Automação Ativa',
-      initialNotificationContent: 'O app está processando notificações em segundo plano.',
+      initialNotificationContent:
+          'O app está processando notificações em segundo plano.',
       foregroundServiceNotificationId: 888,
     ),
     iosConfiguration: IosConfiguration(),
@@ -44,7 +47,7 @@ void onStart(ServiceInstance service) async {
 
   if (service is AndroidServiceInstance) {
     service.setAsForegroundService(); // Force foreground on start
-    
+
     service.on('setAsForeground').listen((event) {
       service.setAsForegroundService();
     });

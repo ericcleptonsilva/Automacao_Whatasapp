@@ -4,15 +4,16 @@ import 'package:flutter/services.dart';
 import '../services/logger_service.dart';
 import '../repositories/notification_repository.dart';
 
-
 class NativeService {
   static const platform = MethodChannel('com.clept.whatsappautomation/channel');
-  
+
   static final NativeService _instance = NativeService._internal();
   factory NativeService() => _instance;
 
-  final _notificationStreamController = StreamController<Map<String, dynamic>>.broadcast();
-  Stream<Map<String, dynamic>> get notificationStream => _notificationStreamController.stream;
+  final _notificationStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get notificationStream =>
+      _notificationStreamController.stream;
 
   NativeService._internal() {
     platform.setMethodCallHandler(_handleMethodCall);
@@ -24,28 +25,32 @@ class NativeService {
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     if (call.method == "onNotification") {
       try {
-        final Map<String, dynamic> data = Map<String, dynamic>.from(call.arguments);
-        
+        final Map<String, dynamic> data = Map<String, dynamic>.from(
+          call.arguments,
+        );
+
         // Simple deduplication logic
         final now = DateTime.now();
-        if (_lastNotificationData != null && 
+        if (_lastNotificationData != null &&
             _lastNotificationTime != null &&
-            now.difference(_lastNotificationTime!) < const Duration(seconds: 2)) {
-          
+            now.difference(_lastNotificationTime!) <
+                const Duration(seconds: 2)) {
           final lastTitle = _lastNotificationData!['title'];
           final lastMessage = _lastNotificationData!['message'];
           final newTitle = data['title'];
           final newMessage = data['message'];
 
           if (lastTitle == newTitle && lastMessage == newMessage) {
-            LoggerService.log("NativeService: Ignoring duplicate notification: $newTitle - $newMessage");
+            LoggerService.log(
+              "NativeService: Ignoring duplicate notification: $newTitle - $newMessage",
+            );
             return;
           }
         }
 
         _lastNotificationData = data;
         _lastNotificationTime = now;
-        
+
         // Add timestamp
         if (!data.containsKey('timestamp')) {
           data['timestamp'] = now.toIso8601String();
@@ -53,7 +58,7 @@ class NativeService {
 
         // Save to persistent storage
         NotificationRepository().saveLog(data);
-        
+
         _notificationStreamController.add(data);
       } catch (e) {
         LoggerService.log("Error processing notification data: $e");
@@ -63,17 +68,23 @@ class NativeService {
 
   Future<bool> isAccessibilityServiceEnabled() async {
     try {
-      final bool result = await platform.invokeMethod('isAccessibilityServiceEnabled');
+      final bool result = await platform.invokeMethod(
+        'isAccessibilityServiceEnabled',
+      );
       return result;
     } on PlatformException catch (e) {
-      LoggerService.log("Failed to check accessibility status: '${e.message}'.");
+      LoggerService.log(
+        "Failed to check accessibility status: '${e.message}'.",
+      );
       return false;
     }
   }
 
   Future<bool> isNotificationListenerEnabled() async {
     try {
-      final bool result = await platform.invokeMethod('isNotificationListenerEnabled');
+      final bool result = await platform.invokeMethod(
+        'isNotificationListenerEnabled',
+      );
       return result;
     } on PlatformException catch (e) {
       LoggerService.log("Failed to check notification status: '${e.message}'.");
@@ -81,19 +92,24 @@ class NativeService {
     }
   }
 
-  Future<void> sendFile(String phone, String filePath, String message, {bool isImage = true}) async {
+  Future<void> sendFile(
+    String phone,
+    String filePath,
+    String message, {
+    bool isImage = true,
+  }) async {
     try {
       await platform.invokeMethod('sendFile', {
         'phone': phone,
         'filePath': filePath,
         'message': message,
-        'isImage': isImage, 
+        'isImage': isImage,
       });
     } on PlatformException catch (e) {
       LoggerService.log("Failed to send file: '${e.message}'.");
     }
   }
-  
+
   Future<void> sendText(String phone, String message) async {
     try {
       await platform.invokeMethod('sendText', {
@@ -105,7 +121,11 @@ class NativeService {
     }
   }
 
-  Future<bool> replyToNotification(String title, String message, {String? replyKey}) async {
+  Future<bool> replyToNotification(
+    String title,
+    String message, {
+    String? replyKey,
+  }) async {
     try {
       final bool result = await platform.invokeMethod('replyToNotification', {
         'title': title,
@@ -161,7 +181,9 @@ class NativeService {
 
   Future<bool> toggleAutomation({bool? enabled}) async {
     try {
-      return await platform.invokeMethod('toggleAutomation', {'enabled': enabled});
+      return await platform.invokeMethod('toggleAutomation', {
+        'enabled': enabled,
+      });
     } catch (e) {
       return false;
     }

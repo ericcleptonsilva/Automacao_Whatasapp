@@ -12,12 +12,7 @@ class Contact {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'phone': phone,
-      'tags': tags,
-    };
+    return {'id': id, 'name': name, 'phone': phone, 'tags': tags};
   }
 
   factory Contact.fromJson(Map<String, dynamic> json) {

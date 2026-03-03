@@ -28,6 +28,9 @@ class WhatsAppAutomationPlugin : FlutterPlugin, MethodCallHandler {
         var pendingMimeType: String? = null
         var pendingMessage: String? = null
         var pendingPackage: String? = null
+        var isAutomationRunning: Boolean = false  // Guard para evitar runnables paralelos
+        var pickerSearchDone: Boolean = false       // Se já digitou no campo de busca do picker
+        var pickerContactSelected: Boolean = false  // Se já clicou no contato na lista do picker
 
         @JvmStatic
         fun notifyNotification(data: Map<String, Any?>) {

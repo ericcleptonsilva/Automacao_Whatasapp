@@ -12,31 +12,39 @@ class LocalLLMService {
   bool _hasPermanentError = false;
 
   bool _isMainIsolate() {
-    return Isolate.current.debugName == 'main' || Isolate.current.debugName == null;
+    return Isolate.current.debugName == 'main' ||
+        Isolate.current.debugName == null;
   }
 
   Future<bool> isReady() async {
     if (_hasPermanentError) return false;
     // MediaPipe often fails in background isolates due to native asset resolution issues.
     if (!_isMainIsolate()) return false;
-    
+
     final path = await _modelManager.getDownloadedModelPath();
     return path != null;
   }
 
-  Future<String?> generateReply(String prompt, {List<Map<String, String>> history = const []}) async {
+  Future<String?> generateReply(
+    String prompt, {
+    List<Map<String, String>> history = const [],
+  }) async {
     if (_hasPermanentError) {
-        LoggerService.log("LocalLLM: Skipping due to previous permanent error.");
+      LoggerService.log("LocalLLM: Skipping due to previous permanent error.");
       return null;
     }
 
     if (!_isMainIsolate()) {
-        LoggerService.log("LocalLLM: Skipping - MediaPipe is not supported in background isolates.");
+      LoggerService.log(
+        "LocalLLM: Skipping - MediaPipe is not supported in background isolates.",
+      );
       return null;
     }
 
     if (_isGenerating) {
-        LoggerService.log("LocalLLM: Engine is currently busy generating a previous response. Skipping concurrent request to avoid MediaPipe assertion.");
+      LoggerService.log(
+        "LocalLLM: Engine is currently busy generating a previous response. Skipping concurrent request to avoid MediaPipe assertion.",
+      );
       return null;
     }
 
@@ -46,7 +54,9 @@ class LocalLLMService {
       if (modelPath == null) return null;
 
       if (_engine == null) {
-          LoggerService.log("LocalLLM: Initializing engine with model: $modelPath");
+        LoggerService.log(
+          "LocalLLM: Initializing engine with model: $modelPath",
+        );
         try {
           final supportDir = await getApplicationSupportDirectory();
           _engine = LlmInferenceEngine(
@@ -59,7 +69,9 @@ class LocalLLMService {
             ),
           );
         } catch (e) {
-            LoggerService.log("LocalLLM Native Error: Failed to initialize engine. $e");
+          LoggerService.log(
+            "LocalLLM Native Error: Failed to initialize engine. $e",
+          );
           _hasPermanentError = true;
           return null;
         }
@@ -67,20 +79,22 @@ class LocalLLMService {
 
       final fullPrompt = _buildFullPrompt(prompt, history);
       final responseStream = _engine!.generateResponse(fullPrompt);
-      
+
       final buffer = StringBuffer();
       await for (final part in responseStream) {
         buffer.write(part);
       }
-      
+
       final fullResponse = buffer.toString();
       return fullResponse.isNotEmpty ? fullResponse : null;
     } catch (e) {
       if (e is ArgumentError && e.toString().contains('native function')) {
-          LoggerService.log("LocalLLM Native Error (FFI): Plugin not available in this isolate. Disabling LocalLLM for this session.");
+        LoggerService.log(
+          "LocalLLM Native Error (FFI): Plugin not available in this isolate. Disabling LocalLLM for this session.",
+        );
         _hasPermanentError = true;
       } else {
-          LoggerService.log("LocalLLM Mobile Error: $e");
+        LoggerService.log("LocalLLM Mobile Error: $e");
       }
       _engine = null; // Reset engine on error
       return null;
@@ -89,7 +103,10 @@ class LocalLLMService {
     }
   }
 
-  String _buildFullPrompt(String userMessage, List<Map<String, String>> history) {
+  String _buildFullPrompt(
+    String userMessage,
+    List<Map<String, String>> history,
+  ) {
     final buffer = StringBuffer();
     for (var entry in history) {
       final role = entry['role'] == 'model' ? 'Assistant' : 'User';

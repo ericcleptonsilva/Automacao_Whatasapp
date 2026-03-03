@@ -35,7 +35,9 @@ class _MetaApiSettingsScreenState extends State<MetaApiSettingsScreen> {
   }
 
   Future<void> _saveCredentials() async {
-    if (_tokenController.text.isEmpty || _phoneIdController.text.isEmpty || _businessIdController.text.isEmpty) {
+    if (_tokenController.text.isEmpty ||
+        _phoneIdController.text.isEmpty ||
+        _businessIdController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, preencha todos os campos.')),
       );
@@ -59,14 +61,20 @@ class _MetaApiSettingsScreenState extends State<MetaApiSettingsScreen> {
 
   Future<void> _testConnection() async {
     if (_tokenController.text.isEmpty || _phoneIdController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salve o Token e Phone ID antes de testar.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Salve o Token e Phone ID antes de testar.'),
+        ),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final url = Uri.parse('https://graph.facebook.com/v18.0/${_phoneIdController.text}');
+      final url = Uri.parse(
+        'https://graph.facebook.com/v18.0/${_phoneIdController.text}',
+      );
       final response = await http.get(
         url,
         headers: {'Authorization': 'Bearer ${_tokenController.text}'},
@@ -74,21 +82,32 @@ class _MetaApiSettingsScreenState extends State<MetaApiSettingsScreen> {
 
       if (response.statusCode == 200) {
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(backgroundColor: Colors.green, content: Text('Conexão com a Meta API: SUCESSO! ✅')),
-           );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.green,
+              content: Text('Conexão com a Meta API: SUCESSO! ✅'),
+            ),
+          );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(backgroundColor: Colors.red, content: Text('Falha na conexão: ${response.statusCode} - ${response.body}')),
+            SnackBar(
+              backgroundColor: Colors.red,
+              content: Text(
+                'Falha na conexão: ${response.statusCode} - ${response.body}',
+              ),
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.red, content: Text('Erro ao conectar: $e')),
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Erro ao conectar: $e'),
+          ),
         );
       }
     } finally {
@@ -123,8 +142,13 @@ class _MetaApiSettingsScreenState extends State<MetaApiSettingsScreen> {
                       labelText: "Access Token (Token de Acesso)",
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
-                        icon: Icon(_isObscureToken ? Icons.visibility : Icons.visibility_off),
-                        onPressed: () => setState(() => _isObscureToken = !_isObscureToken),
+                        icon: Icon(
+                          _isObscureToken
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () =>
+                            setState(() => _isObscureToken = !_isObscureToken),
                       ),
                     ),
                     obscureText: _isObscureToken,
@@ -136,7 +160,8 @@ class _MetaApiSettingsScreenState extends State<MetaApiSettingsScreen> {
                     decoration: const InputDecoration(
                       labelText: "Phone Number ID",
                       border: OutlineInputBorder(),
-                      helperText: "ID do número de telefone que enviará as mensagens",
+                      helperText:
+                          "ID do número de telefone que enviará as mensagens",
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -167,9 +192,9 @@ class _MetaApiSettingsScreenState extends State<MetaApiSettingsScreen> {
                         onPressed: _testConnection,
                         icon: const Icon(Icons.wifi_find),
                         label: const Text("Testar"),
-                         style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
                       ),
                     ],
                   ),

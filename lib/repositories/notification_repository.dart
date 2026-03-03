@@ -4,7 +4,8 @@ import '../services/logger_service.dart';
 
 class NotificationRepository {
   static const String _keyLogs = 'notification_logs';
-  static const int _maxLogs = 50; // Limit to 50 logs to avoid performance issues
+  static const int _maxLogs =
+      50; // Limit to 50 logs to avoid performance issues
 
   Future<List<Map<String, dynamic>>> getLogs() async {
     final prefs = await SharedPreferences.getInstance();
@@ -26,7 +27,7 @@ class NotificationRepository {
 
     // Add timestamp if not present
     if (!log.containsKey('timestamp')) {
-        log['timestamp'] = DateTime.now().toIso8601String();
+      log['timestamp'] = DateTime.now().toIso8601String();
     }
 
     logs.insert(0, log); // Add to top

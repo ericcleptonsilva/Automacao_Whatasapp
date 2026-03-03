@@ -28,7 +28,9 @@ class CRMRepository {
 
   Future<void> saveDepartments(List<Department> departments) async {
     final prefs = await _getPrefs();
-    final String encoded = jsonEncode(departments.map((e) => e.toJson()).toList());
+    final String encoded = jsonEncode(
+      departments.map((e) => e.toJson()).toList(),
+    );
     await prefs.setString(_keyDepartments, encoded);
   }
 

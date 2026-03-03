@@ -54,12 +54,12 @@ class CampaignRepository {
     final prefs = await _getPrefs();
     final List<String> logsJson = prefs.getStringList(_keyCampaignLogs) ?? [];
     logsJson.add(jsonEncode(log.toJson()));
-    
+
     // Limit to last 50 campaigns to save space
     if (logsJson.length > 50) {
       logsJson.removeAt(0);
     }
-    
+
     await prefs.setStringList(_keyCampaignLogs, logsJson);
   }
 
@@ -67,5 +67,27 @@ class CampaignRepository {
     final prefs = await _getPrefs();
     await prefs.remove(_keyCampaignMessage);
     await prefs.remove(_keyCampaignDate);
+  }
+
+  Future<void> clearLogs() async {
+    final prefs = await _getPrefs();
+    await prefs.remove(_keyCampaignLogs);
+  }
+
+  Future<void> deleteLog(String id) async {
+    final prefs = await _getPrefs();
+    final List<String> logsJson = prefs.getStringList(_keyCampaignLogs) ?? [];
+
+    // Remove the log with matching ID
+    logsJson.removeWhere((jsonStr) {
+      try {
+        final Map<String, dynamic> jsonMap = jsonDecode(jsonStr);
+        return jsonMap['id'] == id;
+      } catch (e) {
+        return false;
+      }
+    });
+
+    await prefs.setStringList(_keyCampaignLogs, logsJson);
   }
 }

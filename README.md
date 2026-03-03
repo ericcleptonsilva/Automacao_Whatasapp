@@ -69,9 +69,42 @@ Esta versão marca a transição de um protótipo avançado para um produto de n
 - **Transição de Modelo Fluida:** O aplicativo agora prioriza o `gemini-2.0-flash` como motor principal. Um interceptador converte dinamicamente seleções obsoletas salvas no cache interno para o novo modelo automaticamente.
 - **Proteção do Isolate:** A inicialização do MediaPipe (Gemma) foi blindada com uma flag `isBackgroundContext`, prevenindo crashes severos da JNI (Java Native Interface) quando executado em segundo plano.
 
-### Melhorias na Automação Nativa e Campanhas
+### Gestão de Campanhas e Acessibilidade
 - **Delay Cognitivo de Acessibilidade:** Em versões recentes do Android, a renderização de UI do WhatsApp tem um pequeno atraso. Modificamos o `WhatsAppAccessibilityService` nativo (Kotlin) instanciando um loop de retry assíncrono com delay (`Handler.postDelayed`). Isso resolve o bug crítico onde Campanhas abriam os contatos no WhatsApp, mas não clicavam no botão "Enviar".
 - **Sincronia de IDs:** Foram adicionados múltiplos selectors de Layout ("Send", "Enviar") e Node IDs atualizados do Business e Pessoal para ampliar a detecção de clique em dispositivos rápidos e lentos.
-- **Envio Nativo Direto (Contatos Salvos):** Descartamos os bypasses complexos ou manipulação de Selectors (como o *Contact Picker* que bloqueia números não-salvos). O Autofluxow agora repassa arquivos de mídia (Fotos e PDFs) combinando nativamente a Intent `ACTION_SEND` e a chave JID (`telefone@s.whatsapp.net`). Isso força o aplicativo mensageiro a cair de forma suave e instântanea direto na tela de Pré-visualização Final do Contato Salvo (Preview Screen).
+- **Envio Nativo Direto + Automação de Câmera:** A nova V2 lida graciosamente com fotos e PDFs tanto para contatos ***salvos quanto não-salvos***. O aplicativo tenta o bypass de "chat-preview" usando a intent nativa `ACTION_SEND` em conjunto com a injeção do JID (`wa.me`), injetado primeiramente pelo **State 5**. Caso a injeção não ocorra e o aplicativo do WhatsApp abra o seu *Contact Picker* bloqueando a listagem (devido a rigidez Anti-Spam), nosso Acessibility Service aciona o **State 6**: A automação entra via teclado invisível (Set text input) pesquisando inteligentemente número por número para então selecioná-lo e enviar a mídia na Listagem de Contatos de forma autônoma sem o toque do usuário.
+
+## ⚖️ Conformidade com Google Play (Metadata & Acessibilidade)
+
+Devido às políticas rigorosas da Google Play Store, este projeto mantém um registro claro de sua descrição e uso de permissões sensíveis.
+
+### Descrição Completa para Google Play Store (pt-BR)
+
+**AutoFluxoW: Automação Inteligente para WhatsApp com IA**
+
+O AutoFluxoW é a ferramenta definitiva de CRM e automação para WhatsApp e WhatsApp Business, agora potencializada pelos modelos mais avançados de Inteligência Artificial do mercado, como o Google Gemini. Transforme seu atendimento ao cliente em um fluxo automatizado, inteligente e eficiente.
+
+**Recursos Principais:**
+- **Respostas Inteligentes com IA:** Utilize o poder do Gemini para responder clientes de forma natural e contextualizada.
+- **Automação de Campanhas:** Envie mensagens, fotos e PDFs para múltiplos contatos e grupos de forma automática.
+- **Interação Contextual:** O "Cérebro" do bot agrupa mensagens e entende o histórico para respostas mais precisas.
+- **IA Local e Offline:** Suporte para modelos Gemma 3 e ML Kit para funcionamento mesmo sem internet.
+- **Personalidade Customizável:** Defina o tom de voz e as regras de negócio para o seu bot.
+
+**Uso da API de Serviço de Acessibilidade (AccessibilityService API):**
+O AutoFluxoW utiliza a **AccessibilityService API** para automatizar interações com o WhatsApp em nome do usuário. Este serviço é essencial para:
+1. Detectar e clicar no botão "Enviar" após a composição automatizada de mensagens.
+2. Automatizar a pesquisa de contatos no seletor do WhatsApp para envios de campanhas.
+3. Facilitar o fluxo de envio de mídias (fotos e documentos) de forma autônoma.
+
+**IMPORTANTE:**
+- O serviço de acessibilidade é utilizado estritamente para as funções de automação solicitadas pelo usuário.
+- Não coletamos, armazenamos ou compartilhamos dados pessoais ou mensagens privadas através deste serviço.
+- O usuário tem total controle e pode desativar a permissão a qualquer momento nas configurações do sistema.
+
+### Histórico de Rejeições e Correções
+- **Rejeição (Março 2026):** Problemas de metadados (placeholders de IA) e falta de divulgação clara da API de Acessibilidade.
+- **Correção:** Descrição reescrita, placeholders removidos e seção de divulgação de Acessibilidade adicionada conforme exigido pela Política de Dados do Usuário.
+
 ---
 Para detalhes técnicos e logs de erros, consulte o arquivo [ISSUES.md](file:///c:/Users/clept/Documents/APPS/Automacao_Whatasapp/ISSUES.md).

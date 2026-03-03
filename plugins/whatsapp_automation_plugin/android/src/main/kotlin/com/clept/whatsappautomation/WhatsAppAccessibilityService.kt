@@ -31,18 +31,22 @@ class WhatsAppAccessibilityService : AccessibilityService() {
             }
 
             val rootNode = rootInActiveWindow ?: return
+
+            // GUARD: Impede múltiplos runnables paralelos (problema com eventos de UI rápidos)
+            if (WhatsAppAutomationPlugin.isAutomationRunning) return
+            WhatsAppAutomationPlugin.isAutomationRunning = true
             
             // Just find and click send button if needed (legacy fallback)
             val handler = android.os.Handler(android.os.Looper.getMainLooper())
             var attempts = 0
             val maxAttempts = 30 // Até 15 segundos (~30x 500ms)
-            var pickerSearchDone = false
 
             val checkRunnable = object : Runnable {
                 override fun run() {
-                    val root = rootInActiveWindow
-                    if (root != null && WhatsAppAutomationPlugin.automationState > 0) {
-                        Log.d(TAG, "Current UI State: ${WhatsAppAutomationPlugin.automationState}")
+                    try {
+                        val root = rootInActiveWindow
+                        if (root != null && WhatsAppAutomationPlugin.automationState > 0) {
+                            Log.d(TAG, "Current UI State: ${WhatsAppAutomationPlugin.automationState}")
                         when (WhatsAppAutomationPlugin.automationState) {
                             5 -> {
                                 // Aguarda o chat da wa.me abrir (campo de entrada visível)
@@ -78,6 +82,7 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                                 if (findAndClickSendButton(root)) {
                                     WhatsAppAutomationPlugin.automationState = 0
                                     WhatsAppAutomationPlugin.isPendingSendClick = false
+                                    WhatsAppAutomationPlugin.isAutomationRunning = false
                                     Log.d(TAG, "Clicked Final Send Button in Preview")
                                 } else {
                                     val btnSendDialog = findNodesByText(root, listOf("Send", "Enviar", "SEND", "ENVIAR", "Sim", "Yes"))
@@ -87,6 +92,7 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                                             btn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                                             WhatsAppAutomationPlugin.automationState = 0
                                             WhatsAppAutomationPlugin.isPendingSendClick = false
+                                            WhatsAppAutomationPlugin.isAutomationRunning = false
                                             Log.d(TAG, "Clicked Send in Alert Dialog")
                                             clickedDialog = true
                                             break
@@ -94,7 +100,7 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                                     }
                                     // Se depois de 5 tentativas ainda não achou o botão enviar,
                                     // provavelmente estamos no Contact Picker → vai para State 6
-                                    if (!clickedDialog && attempts >= 5 && !pickerSearchDone) {
+                                    if (!clickedDialog && attempts >= 5 && !WhatsAppAutomationPlugin.pickerSearchDone) {
                                         Log.d(TAG, "State 4: No Send button found after $attempts attempts. Switching to Contact Picker automation (State 6)")
                                         WhatsAppAutomationPlugin.automationState = 6
                                         attempts = 0
@@ -104,9 +110,8 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                             6 -> {
                                 // Automatiza o Contact Picker do WhatsApp
                                 // Fase 1: Digitar o número no campo de busca
-                                if (!pickerSearchDone) {
+                                if (!WhatsAppAutomationPlugin.pickerSearchDone) {
                                     val phone = WhatsAppAutomationPlugin.pendingPhone ?: ""
-                                    // Procura campo de busca (EditText editável que não seja o campo de mensagem)
                                     val allEditTexts = mutableListOf<AccessibilityNodeInfo>()
                                     collectNodes(root, allEditTexts) { it.className?.contains("EditText") == true && it.isEditable }
                                     val searchField = allEditTexts.firstOrNull()
@@ -115,12 +120,44 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                                         val args = Bundle()
                                         args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, phone)
                                         searchField.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-                                        pickerSearchDone = true
+                                        WhatsAppAutomationPlugin.pickerSearchDone = true
                                         Log.d(TAG, "State 6: Typed phone '$phone' in Contact Picker search field")
                                     } else {
-                                        Log.d(TAG, "State 6: Search field not found yet (attempt $attempts)")
+                                        // Busca pelo íncone da lupa primeiro
+                                        val searchIcons = mutableListOf<AccessibilityNodeInfo>()
+                                        
+                                        // 1. Tenta pelo ID oficial da Lupa no Android/WhatsApp
+                                        val searchIds = listOf(
+                                            "com.whatsapp:id/menuitem_search",
+                                            "com.whatsapp.w4b:id/menuitem_search"
+                                        )
+                                        for (id in searchIds) {
+                                            val list = root.findAccessibilityNodeInfosByViewId(id)
+                                            if (list != null) searchIcons.addAll(list)
+                                        }
+
+                                        // 2. Fallback pelas Descriptions
+                                        if (searchIcons.isEmpty()) {
+                                            findNodesByContentDescription(root, listOf("Search", "Pesquisar", "Buscar", "SEARCH", "PESQUISAR"), searchIcons)
+                                        }
+                                        
+                                        var foundIcon = false
+                                        for (icon in searchIcons) {
+                                            if (icon.isClickable) {
+                                                icon.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                                Log.d(TAG, "State 6: Clicked Search Icon. Waiting for EditText to appear...")
+                                                foundIcon = true
+                                                break
+                                            } else if (icon.parent != null && icon.parent.isClickable) {
+                                                icon.parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                                Log.d(TAG, "State 6: Clicked Search Icon (Parent). Waiting for EditText to appear...")
+                                                foundIcon = true
+                                                break
+                                            }
+                                        }
+                                        if (!foundIcon) Log.d(TAG, "State 6: Search field AND Search Icon not found yet (attempt $attempts)")
                                     }
-                                } else {
+                                } else if (!WhatsAppAutomationPlugin.pickerContactSelected) {
                                     // Fase 2: Aguarda resultados e clica no primeiro contato encontrado
                                     val clickableRows = mutableListOf<AccessibilityNodeInfo>()
                                     collectNodes(root, clickableRows) {
@@ -139,20 +176,32 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                                     }
                                     if (contactRow != null) {
                                         contactRow.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                                        Log.d(TAG, "State 6: Clicked contact row in picker. Switching back to State 4.")
-                                        WhatsAppAutomationPlugin.automationState = 4
-                                        pickerSearchDone = false
+                                        Log.d(TAG, "State 6: Clicked contact row. Waiting for FAB...")
+                                        WhatsAppAutomationPlugin.pickerContactSelected = true
                                         attempts = 0
                                     } else {
                                         Log.d(TAG, "State 6: Waiting for contact list results (attempt $attempts)...")
                                     }
+                                } else {
+                                    // Fase 3: Confirma a seleção clicando no FAB do Picker para ir à Preview Screen Final
+                                    if (findAndClickSendButton(root)) {
+                                        Log.d(TAG, "State 6: Clicked FAB to confirm contact. Switching to State 4 for Final Preview.")
+                                        WhatsAppAutomationPlugin.automationState = 4
+                                        WhatsAppAutomationPlugin.pickerSearchDone = false
+                                        WhatsAppAutomationPlugin.pickerContactSelected = false
+                                        attempts = -2 // Atraso de ~1 segundo (2 iteracoes) antes de verificar a nova tela no State 4
+                                    } else {
+                                        Log.d(TAG, "State 6: Waiting for FAB to confirm contact (attempt $attempts)...")
+                                    }
                                 }
+
                             }
                         }
                     } else if (root != null && WhatsAppAutomationPlugin.isPendingSendClick) {
                         // Fallback Text Only handling
                         if (findAndClickSendButton(root)) {
                             WhatsAppAutomationPlugin.isPendingSendClick = false
+                            WhatsAppAutomationPlugin.isAutomationRunning = false
                             Log.d(TAG, "Successfully clicked Send button after $attempts attempts.")
                             return
                         }
@@ -165,10 +214,29 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                         Log.d(TAG, "Failed to complete Acessibility Automation after $maxAttempts attempts.")
                         WhatsAppAutomationPlugin.automationState = 0
                         WhatsAppAutomationPlugin.isPendingSendClick = false
+                        WhatsAppAutomationPlugin.pickerSearchDone = false
+                        WhatsAppAutomationPlugin.pickerContactSelected = false
+                        WhatsAppAutomationPlugin.isAutomationRunning = false
+                    }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Accessibility loop crash: ${e.message}", e)
+                        WhatsAppAutomationPlugin.automationState = 0
+                        WhatsAppAutomationPlugin.isPendingSendClick = false
+                        WhatsAppAutomationPlugin.pickerSearchDone = false
+                        WhatsAppAutomationPlugin.pickerContactSelected = false
+                        WhatsAppAutomationPlugin.isAutomationRunning = false
+                    } finally {
+                        // O isAutomationRunning DEVE ser false se NÃO for reagendar o loop
+                        // Notar que `attempts < maxAttempts` verifica se o loop vai reagendar
+                        if (!(attempts < maxAttempts && (WhatsAppAutomationPlugin.automationState > 0 || WhatsAppAutomationPlugin.isPendingSendClick))) {
+                             WhatsAppAutomationPlugin.isAutomationRunning = false
+                        }
                     }
                 }
             }
+
             handler.post(checkRunnable)
+            
             
         }
     }

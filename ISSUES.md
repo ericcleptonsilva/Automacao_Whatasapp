@@ -157,6 +157,39 @@ O Google Play Console exige uma Política de Privacidade válida por URL em apli
 
 ---
 
+## [ISSUE-017] Necessidade de Novo Build para Re-upload (Google Play)
+
+### Descrição do Problema
+Para reenviar o aplicativo após as correções de política, é necessário que o código de versão (`versionCode`) e o nome da versão (`versionName`) sejam superiores aos já enviados anteriormente, caso contrário o Google Play rejeita o arquivo por duplicidade de versão.
+
+### Resolução
+1. **Incremento de Versão:** O `pubspec.yaml` foi atualizado de `2.0.1+3` para `2.0.2+4`.
+2. **Sincronia Nativa:** Confirmado que o `build.gradle.kts` do Android está utilizando as variáveis dinâmicas do Flutter, garantindo que o novo APK/AAB herde a versão correta.
+
+---
+
+## [ISSUE-015] Violação de Política de Metadados (Google Play)
+
+### Descrição do Problema
+O Google Play rejeitou a atualização do aplicativo alegando que os metadados (título, descrição, etc.) não descrevem fielmente a funcionalidade do app ou contêm informações insuficientes/impróprias. Foi identificado que a "Descrição Completa" continha textos de placeholder gerados por IA que não foram removidos.
+
+### Resolução
+1. **Revisão de Metadados:** Removidos todos os textos de introdução e placeholders da descrição.
+2. **Nova Descrição:** Redigida uma nova descrição focada em benefícios reais (CRM, Automação, IA) e funcionalidades concretas.
+
+---
+
+## [ISSUE-016] Falta de Divulgação da AccessibilityService API (Google Play)
+
+### Descrição do Problema
+O aplicativo foi rejeitado porque a descrição na Play Store não explicava o uso da `AccessibilityService API`. O Google exige que qualquer app que utilize este serviço descreva detalhadamente *por que* ele é necessário e *como* ele beneficia o usuário.
+
+### Resolução
+1. **Divulgação Proeminente:** Adicionada uma seção específica na descrição do app explicando que a API de Acessibilidade é usada para automatizar cliques no botão "Enviar" e interagir com o seletor de contatos do WhatsApp para facilitar o CRM e as campanhas.
+2. **Garantia de Privacidade:** Reforçada a informação de que nenhum dado pessoal é coletado ou compartilhado através deste serviço.
+
+---
+
 ## [RELEASE] v2.0.0 - Estabilidade e Evolução Gemma
 
 ### Status Atual
